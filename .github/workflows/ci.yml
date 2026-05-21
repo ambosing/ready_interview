@@ -88,7 +88,7 @@ jobs:
 
     env:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST || vars.DEPLOY_HOST || 'jimon-server' }}
-      DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/srv/ready_interview' }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH || 'ready_interview' }}
       BACKEND_SERVICE: ${{ vars.BACKEND_SERVICE || 'ready-interview-backend' }}
       FRONTEND_SERVICE: ${{ vars.FRONTEND_SERVICE || 'ready-interview-frontend' }}
 
