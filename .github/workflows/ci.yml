@@ -89,8 +89,8 @@ jobs:
     env:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST || vars.DEPLOY_HOST || 'jimon-server' }}
       DEPLOY_PATH: ${{ vars.DEPLOY_PATH || 'ready_interview' }}
-      BACKEND_SERVICE: ${{ vars.BACKEND_SERVICE || 'ready-interview-backend' }}
-      FRONTEND_SERVICE: ${{ vars.FRONTEND_SERVICE || 'ready-interview-frontend' }}
+      BACKEND_PROCESS: ${{ vars.BACKEND_PROCESS || 'ready-interview-backend' }}
+      FRONTEND_PROCESS: ${{ vars.FRONTEND_PROCESS || 'ready-interview-frontend' }}
 
     steps:
       - name: Checkout
@@ -128,7 +128,7 @@ jobs:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
           timeout 600s tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" \
-            "DEPLOY_PATH='$DEPLOY_PATH' BACKEND_SERVICE='$BACKEND_SERVICE' FRONTEND_SERVICE='$FRONTEND_SERVICE' bash -s" <<'REMOTE_SCRIPT'
+            "DEPLOY_PATH='$DEPLOY_PATH' BACKEND_PROCESS='$BACKEND_PROCESS' FRONTEND_PROCESS='$FRONTEND_PROCESS' bash -s" <<'REMOTE_SCRIPT'
           set -euo pipefail
 
           cd "$DEPLOY_PATH"
@@ -140,11 +140,17 @@ jobs:
           npm --prefix backend exec prisma generate
           npm --prefix backend run build
 
-          if systemctl list-unit-files "$BACKEND_SERVICE.service" >/dev/null 2>&1; then
-            sudo systemctl restart "$BACKEND_SERVICE"
+          if pm2 describe "$BACKEND_PROCESS" >/dev/null 2>&1; then
+            pm2 restart "$BACKEND_PROCESS" --update-env
+          else
+            pm2 start backend/dist/main.js --name "$BACKEND_PROCESS"
           fi
 
-          if systemctl list-unit-files "$FRONTEND_SERVICE.service" >/dev/null 2>&1; then
-            sudo systemctl restart "$FRONTEND_SERVICE"
+          if pm2 describe "$FRONTEND_PROCESS" >/dev/null 2>&1; then
+            pm2 restart "$FRONTEND_PROCESS" --update-env
+          else
+            pm2 serve frontend/dist 4173 --spa --name "$FRONTEND_PROCESS"
           fi
+
+          pm2 save
           REMOTE_SCRIPT
