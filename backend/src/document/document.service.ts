@@ -2,7 +2,12 @@ import { DocumentType } from '@prisma/client';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ProfileService } from '../profile/profile.service.js';
-import { AiService } from '../ai/ai.service.js';
+import { AiService, type AiGenerationModel } from '../ai/ai.service.js';
+
+const AI_GENERATION_MODELS = [
+  'gemini-3.1-pro-preview',
+  'gemini-3.1-flash-lite-preview',
+] as const;
 
 @Injectable()
 export class DocumentService {
@@ -14,6 +19,12 @@ export class DocumentService {
 
   private createNotFoundError() {
     return new NotFoundException('Document not found');
+  }
+
+  private resolveAiModel(aiModel?: string): AiGenerationModel {
+    return AI_GENERATION_MODELS.includes(aiModel as AiGenerationModel)
+      ? aiModel as AiGenerationModel
+      : 'gemini-3.1-pro-preview';
   }
 
   async listDocuments(userId: string, page: number, limit: number) {
@@ -48,7 +59,7 @@ export class DocumentService {
     return document;
   }
 
-  async generateDocument(userId: string, type: DocumentType, jobPostingId: string) {
+  async generateDocument(userId: string, type: DocumentType, jobPostingId: string, aiModel?: string) {
     const [profile, jobPosting] = await Promise.all([
       this.profileService.getProfile(userId),
       this.prisma.jobPosting.findFirst({ where: { id: jobPostingId, userId } }),
@@ -58,9 +69,10 @@ export class DocumentService {
       throw new NotFoundException('Job posting not found');
     }
 
+    const selectedAiModel = this.resolveAiModel(aiModel);
     const content = type === DocumentType.RESUME
-      ? await this.aiService.generateResume(profile as any, jobPosting as any)
-      : await this.aiService.generatePortfolio(profile as any, jobPosting as any);
+      ? await this.aiService.generateResume(profile as any, jobPosting as any, selectedAiModel)
+      : await this.aiService.generatePortfolio(profile as any, jobPosting as any, selectedAiModel);
     const title = `${jobPosting.company ?? '지원 기업'} ${type === DocumentType.RESUME ? '이력서' : '포트폴리오'}`;
 
     const document = await this.prisma.generatedDocument.create({

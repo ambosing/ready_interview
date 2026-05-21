@@ -3,7 +3,7 @@ import { isAxiosError } from 'axios'
 import { toast } from 'sonner'
 
 import { api } from '@/lib/api'
-import type { ApiListResponse, ApiResponse, DocumentType, DocumentVersion, GeneratedDocument } from '@/types'
+import type { AiModel, ApiListResponse, ApiResponse, DocumentType, DocumentVersion, GeneratedDocument } from '@/types'
 
 type DocumentListParams = {
   page?: number
@@ -13,6 +13,7 @@ type DocumentListParams = {
 type GenerateDocumentInput = {
   type: DocumentType
   jobPostingId: string
+  aiModel?: AiModel
 }
 
 type UpdateDocumentInput = {

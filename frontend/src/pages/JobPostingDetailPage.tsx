@@ -1,23 +1,38 @@
 import { LoaderCircle, Sparkles } from 'lucide-react'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { documentKeys, useGenerateDocument } from '@/hooks/use-documents'
 import { jobPostingKeys, useAnalyzeJobPosting, useJobPosting } from '@/hooks/use-job-postings'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import type { DocumentType, JobPostingStatus } from '@/types'
+import type { AiModel, DocumentType, JobPostingStatus } from '@/types'
 
 const statusMap: Record<JobPostingStatus, { label: string; className: string }> = {
   DRAFT: { label: '초안', className: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-500/15 dark:text-zinc-300' },
   ANALYZED: { label: '분석 완료', className: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300' },
   APPLIED: { label: '지원 완료', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' },
 }
+
+const aiModelOptions: Array<{ value: AiModel; label: string; description: string }> = [
+  {
+    value: 'gemini-3.1-pro-preview',
+    label: 'Gemini 3.1 Pro',
+    description: '품질 우선',
+  },
+  {
+    value: 'gemini-3.1-flash-lite-preview',
+    label: 'Gemini 3.1 Flash Lite',
+    description: '속도 우선',
+  },
+]
 
 function parseStringArray(value: string | null) {
   if (!value) {
@@ -39,6 +54,7 @@ export default function JobPostingDetailPage() {
   const { data: jobPosting, isLoading } = useJobPosting(id)
   const analyzeJobPosting = useAnalyzeJobPosting(id)
   const generateDocument = useGenerateDocument()
+  const [selectedAiModel, setSelectedAiModel] = useState<AiModel>('gemini-3.1-pro-preview')
 
   const keywords = useMemo(() => parseStringArray(jobPosting?.analyzedKeywords ?? null), [jobPosting?.analyzedKeywords])
   const requirements = useMemo(() => parseStringArray(jobPosting?.analyzedRequirements ?? null), [jobPosting?.analyzedRequirements])
@@ -64,7 +80,7 @@ export default function JobPostingDetailPage() {
       return
     }
 
-    const created = await generateDocument.mutateAsync({ type, jobPostingId: id })
+    const created = await generateDocument.mutateAsync({ type, jobPostingId: id, aiModel: selectedAiModel })
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: documentKeys.all }),
       queryClient.invalidateQueries({ queryKey: jobPostingKeys.detail(id) }),
@@ -160,6 +176,25 @@ export default function JobPostingDetailPage() {
               <CardDescription>분석 결과를 바탕으로 맞춤형 문서를 빠르게 생성하세요.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="document-ai-model">AI 모델</Label>
+                <Select value={selectedAiModel} onValueChange={(value) => setSelectedAiModel(value as AiModel)}>
+                  <SelectTrigger id="document-ai-model" className="w-full">
+                    <SelectValue placeholder="AI 모델 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {aiModelOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        <span className="flex items-center gap-2">
+                          <span>{option.label}</span>
+                          <span className="text-xs text-muted-foreground">{option.description}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="grid gap-3 sm:grid-cols-2">
                 <Button
                   variant="outline"

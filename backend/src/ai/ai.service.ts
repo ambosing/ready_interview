@@ -31,6 +31,8 @@ export interface JobPostingAnalysisResult {
   companyInfo: string;
 }
 
+export type AiGenerationModel = 'gemini-3.1-pro-preview' | 'gemini-3.1-flash-lite-preview';
+
 @Injectable()
 export class AiService {
   private ai: GoogleGenerativeAI;
@@ -112,7 +114,7 @@ ${content}
     }
   }
 
-  async generateResume(profile: ProfileForGeneration, jobPosting: JobPostingForGeneration): Promise<string> {
+  async generateResume(profile: ProfileForGeneration, jobPosting: JobPostingForGeneration, aiModel: AiGenerationModel = 'gemini-3.1-pro-preview'): Promise<string> {
     const prompt = `
 당신은 최고의 커리어 컨설턴트이자 이력서 작성 전문가입니다.
 사용자의 프로필과 지원하려는 채용 공고 정보를 바탕으로, 해당 직무에 가장 적합한 형태의 '맞춤형 이력서'를 Markdown 형식으로 작성해 주세요.
@@ -133,7 +135,7 @@ ${this.profileToText(profile)}
 `;
 
     try {
-      const model = this.ai.getGenerativeModel({ model: 'gemini-3.1-pro-preview' });
+      const model = this.ai.getGenerativeModel({ model: aiModel });
       const response = await model.generateContent(prompt);
       return response.response.text() || '# 이력서 생성 실패';
     } catch (e) {
@@ -141,7 +143,7 @@ ${this.profileToText(profile)}
     }
   }
 
-  async generatePortfolio(profile: ProfileForGeneration, jobPosting: JobPostingForGeneration): Promise<string> {
+  async generatePortfolio(profile: ProfileForGeneration, jobPosting: JobPostingForGeneration, aiModel: AiGenerationModel = 'gemini-3.1-pro-preview'): Promise<string> {
     const prompt = `
 당신은 최고의 커리어 컨설턴트이자 포트폴리오 작성 전문가입니다.
 사용자의 프로필과 지원하려는 채용 공고 정보를 바탕으로, 해당 직무에 가장 적합한 형태의 '맞춤형 포트폴리오(경력 기술서)'를 Markdown 형식으로 작성해 주세요.
@@ -162,7 +164,7 @@ ${this.profileToText(profile)}
 `;
 
     try {
-      const model = this.ai.getGenerativeModel({ model: 'gemini-3.1-pro-preview' });
+      const model = this.ai.getGenerativeModel({ model: aiModel });
       const response = await model.generateContent(prompt);
       return response.response.text() || '# 포트폴리오 생성 실패';
     } catch (e) {

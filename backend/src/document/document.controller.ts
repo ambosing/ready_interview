@@ -24,7 +24,7 @@ export class DocumentController {
   @Post('generate')
   async method3(@Body() body: any, @CurrentUser() user: any) {
     const payload = body; // Needs validation
-    const result = await this.service.generateDocument(user.userId, payload.type, payload.jobPostingId);
+    const result = await this.service.generateDocument(user.userId, payload.type, payload.jobPostingId, payload.aiModel);
     return { data: result };
   }
 

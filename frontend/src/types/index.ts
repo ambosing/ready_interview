@@ -86,6 +86,7 @@ export interface SwotAnalysis {
 
 export type JobPostingStatus = 'DRAFT' | 'ANALYZED' | 'APPLIED'
 export type DocumentType = 'RESUME' | 'PORTFOLIO'
+export type AiModel = 'gemini-3.1-pro-preview' | 'gemini-3.1-flash-lite-preview'
 export type ApplicationStatus =
   | 'APPLIED'
   | 'SCREENING'
