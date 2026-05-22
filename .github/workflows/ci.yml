@@ -149,7 +149,7 @@ jobs:
           npm --prefix frontend run build
 
           npm --prefix backend ci
-          npm --prefix backend exec prisma generate
+          npm --prefix backend exec prisma generate -- --schema backend/prisma/schema.prisma
           npm --prefix backend run build
 
           if ! command -v pm2 >/dev/null 2>&1; then
