@@ -133,12 +133,28 @@ jobs:
 
           cd "$DEPLOY_PATH"
 
+          if [ -s "$HOME/.nvm/nvm.sh" ]; then
+            . "$HOME/.nvm/nvm.sh"
+            nvm install 22
+            nvm use 22
+          fi
+
+          node_major="$(node -p "process.versions.node.split('.')[0]")"
+          if [ "$node_major" -lt 22 ]; then
+            echo "Node.js 22 이상이 필요합니다. 현재 버전: $(node -v)"
+            exit 1
+          fi
+
           npm --prefix frontend ci
           npm --prefix frontend run build
 
           npm --prefix backend ci
           npm --prefix backend exec prisma generate
           npm --prefix backend run build
+
+          if ! command -v pm2 >/dev/null 2>&1; then
+            npm install -g pm2
+          fi
 
           if pm2 describe "$BACKEND_PROCESS" >/dev/null 2>&1; then
             pm2 restart "$BACKEND_PROCESS" --update-env
