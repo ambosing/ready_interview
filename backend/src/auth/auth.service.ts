@@ -2,11 +2,7 @@ import { Injectable, UnauthorizedException, ConflictException, NotFoundException
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { PrismaService } from '../prisma/prisma.service.js';
-
-const config = {
-  jwtSecret: process.env.JWT_SECRET || 'secret',
-  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'refresh_secret',
-};
+import { config } from '../config/index.js';
 
 interface TokenPayload {
   userId: string;
@@ -21,13 +17,13 @@ export class AuthService {
     const accessToken = jwt.sign(
       { userId, email },
       config.jwtSecret,
-      { expiresIn: '1h' }
+      { algorithm: 'HS256', expiresIn: '1h' }
     );
 
     const refreshToken = jwt.sign(
       { userId, email },
       config.jwtRefreshSecret,
-      { expiresIn: '7d' }
+      { algorithm: 'HS256', expiresIn: '7d' }
     );
 
     return { accessToken, refreshToken };
@@ -91,7 +87,9 @@ export class AuthService {
 
   async refreshToken(token: string) {
     try {
-      const payload = jwt.verify(token, config.jwtRefreshSecret) as TokenPayload;
+      const payload = jwt.verify(token, config.jwtRefreshSecret, {
+        algorithms: ['HS256'],
+      }) as TokenPayload;
       const user = await this.prisma.user.findUnique({ where: { id: payload.userId } });
 
       if (!user) {
