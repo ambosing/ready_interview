@@ -105,7 +105,7 @@ jobs:
       - name: Prepare deploy directory
         env:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-        run: timeout 30s tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH' && sudo mkdir -p '$FRONTEND_ROOT'"
+        run: timeout 30s tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH' '$FRONTEND_ROOT'"
 
       - name: Sync source to server
         env:
@@ -129,7 +129,7 @@ jobs:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
           timeout 600s tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" \
-            "DEPLOY_PATH='$DEPLOY_PATH' BACKEND_PROCESS='$BACKEND_PROCESS' FRONTEND_PROCESS='$FRONTEND_PROCESS' bash -s" <<'REMOTE_SCRIPT'
+            "DEPLOY_PATH='$DEPLOY_PATH' FRONTEND_ROOT='$FRONTEND_ROOT' BACKEND_PROCESS='$BACKEND_PROCESS' FRONTEND_PROCESS='$FRONTEND_PROCESS' bash -s" <<'REMOTE_SCRIPT'
           set -euo pipefail
 
           cd "$DEPLOY_PATH"
@@ -148,8 +148,8 @@ jobs:
 
           npm --prefix frontend ci
           npm --prefix frontend run build
-          sudo find "$FRONTEND_ROOT" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-          sudo cp -R frontend/dist/. "$FRONTEND_ROOT"/
+          find "$FRONTEND_ROOT" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+          cp -R frontend/dist/. "$FRONTEND_ROOT"/
 
           npm --prefix backend ci
           cd backend
@@ -163,10 +163,9 @@ jobs:
           fi
 
           if pm2 describe "$BACKEND_PROCESS" >/dev/null 2>&1; then
-            pm2 restart "$BACKEND_PROCESS" --update-env --cwd backend
-          else
-            pm2 start dist/main.js --name "$BACKEND_PROCESS" --cwd backend
+            pm2 delete "$BACKEND_PROCESS"
           fi
+          pm2 start dist/main.js --name "$BACKEND_PROCESS" --cwd backend
 
           if pm2 describe "$FRONTEND_PROCESS" >/dev/null 2>&1; then
             pm2 delete "$FRONTEND_PROCESS"
