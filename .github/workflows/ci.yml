@@ -152,17 +152,20 @@ jobs:
           sudo cp -R frontend/dist/. "$FRONTEND_ROOT"/
 
           npm --prefix backend ci
-          npm --prefix backend exec prisma generate -- --schema backend/prisma/schema.prisma
-          npm --prefix backend run build
+          cd backend
+          npm exec prisma generate
+          npm exec prisma migrate deploy
+          npm run build
+          cd ..
 
           if ! command -v pm2 >/dev/null 2>&1; then
             npm install -g pm2
           fi
 
           if pm2 describe "$BACKEND_PROCESS" >/dev/null 2>&1; then
-            pm2 restart "$BACKEND_PROCESS" --update-env
+            pm2 restart "$BACKEND_PROCESS" --update-env --cwd backend
           else
-            pm2 start backend/dist/main.js --name "$BACKEND_PROCESS"
+            pm2 start dist/main.js --name "$BACKEND_PROCESS" --cwd backend
           fi
 
           if pm2 describe "$FRONTEND_PROCESS" >/dev/null 2>&1; then
