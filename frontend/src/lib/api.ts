@@ -17,7 +17,7 @@ type RefreshResponse = {
 }
 
 export const api = axios.create({
-  baseURL: 'http://localhost:3001/api',
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -43,7 +43,7 @@ api.interceptors.response.use(
       originalRequest._retry = true
 
       try {
-        const response = await axios.post<RefreshResponse>('http://localhost:3001/api/auth/refresh', {
+        const response = await axios.post<RefreshResponse>('/api/auth/refresh', {
           refreshToken,
         })
 

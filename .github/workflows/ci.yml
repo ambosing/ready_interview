@@ -89,6 +89,7 @@ jobs:
     env:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST || vars.DEPLOY_HOST || 'jimon-server' }}
       DEPLOY_PATH: ${{ vars.DEPLOY_PATH || 'ready_interview' }}
+      FRONTEND_ROOT: ${{ vars.FRONTEND_ROOT || '/var/www/hirey' }}
       BACKEND_PROCESS: ${{ vars.BACKEND_PROCESS || 'ready-interview-backend' }}
       FRONTEND_PROCESS: ${{ vars.FRONTEND_PROCESS || 'ready-interview-frontend' }}
 
@@ -104,7 +105,7 @@ jobs:
       - name: Prepare deploy directory
         env:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-        run: timeout 30s tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH'"
+        run: timeout 30s tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH' && sudo mkdir -p '$FRONTEND_ROOT'"
 
       - name: Sync source to server
         env:
@@ -147,6 +148,8 @@ jobs:
 
           npm --prefix frontend ci
           npm --prefix frontend run build
+          sudo find "$FRONTEND_ROOT" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+          sudo cp -R frontend/dist/. "$FRONTEND_ROOT"/
 
           npm --prefix backend ci
           npm --prefix backend exec prisma generate -- --schema backend/prisma/schema.prisma
@@ -163,9 +166,7 @@ jobs:
           fi
 
           if pm2 describe "$FRONTEND_PROCESS" >/dev/null 2>&1; then
-            pm2 restart "$FRONTEND_PROCESS" --update-env
-          else
-            pm2 serve frontend/dist 4173 --spa --name "$FRONTEND_PROCESS"
+            pm2 delete "$FRONTEND_PROCESS"
           fi
 
           pm2 save
