@@ -2,6 +2,7 @@ import { InterviewDifficulty, InterviewStatus, InterviewType, MessageRole } from
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AiService } from '../ai/ai.service.js';
+import { resolveAiModel } from '../ai/ai-models.js';
 
 @Injectable()
 export class InterviewService {
@@ -82,7 +83,7 @@ export class InterviewService {
     return this.formatSession(session);
   }
 
-  async sendInterviewMessage(userId: string, id: string, content: string) {
+  async sendInterviewMessage(userId: string, id: string, content: string, aiModel?: string) {
     const session = await this.prisma.interviewSession.findFirst({
       where: { id, userId },
       include: { messages: { orderBy: { createdAt: 'asc' } } },
@@ -103,7 +104,11 @@ export class InterviewService {
         orderBy: { createdAt: 'asc' },
       });
 
-      const response = await this.aiService.generateInterviewerResponse(currentMessages as any, session.difficulty as any);
+      const response = await this.aiService.generateInterviewerResponse(
+        currentMessages as any,
+        session.difficulty as any,
+        resolveAiModel(aiModel),
+      );
 
       await tx.interviewMessage.create({
         data: { sessionId: id, role: MessageRole.INTERVIEWER, content: response },
@@ -121,7 +126,7 @@ export class InterviewService {
     };
   }
 
-  async endInterviewSession(userId: string, id: string) {
+  async endInterviewSession(userId: string, id: string, aiModel?: string) {
     const session = await this.prisma.interviewSession.findFirst({
       where: { id, userId },
       include: {
@@ -132,7 +137,7 @@ export class InterviewService {
 
     if (!session) throw this.createNotFoundError();
 
-    const feedback = await this.aiService.generateInterviewFeedback(session.messages as any);
+    const feedback = await this.aiService.generateInterviewFeedback(session.messages as any, resolveAiModel(aiModel));
     const updated = await this.prisma.interviewSession.update({
       where: { id },
       data: {

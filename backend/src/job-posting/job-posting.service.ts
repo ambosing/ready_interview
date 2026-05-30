@@ -2,6 +2,7 @@ import { JobPostingStatus } from '@prisma/client';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AiService } from '../ai/ai.service.js';
+import { resolveAiModel } from '../ai/ai-models.js';
 import { parseJsonArray, serializeStringArray } from '../utils/route-helpers.js';
 
 export type JobPostingInput = {
@@ -89,11 +90,11 @@ export class JobPostingService {
     await this.prisma.jobPosting.delete({ where: { id } });
   }
 
-  async analyzeJobPostingById(userId: string, id: string) {
+  async analyzeJobPostingById(userId: string, id: string, aiModel?: string) {
     const existing = await this.prisma.jobPosting.findFirst({ where: { id, userId } });
     if (!existing) throw this.createNotFoundError();
 
-    const analysis = await this.aiService.analyzeJobPosting(existing.content);
+    const analysis = await this.aiService.analyzeJobPosting(existing.content, resolveAiModel(aiModel));
     const jobPosting = await this.prisma.jobPosting.update({
       where: { id },
       data: {

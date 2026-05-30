@@ -3,6 +3,7 @@ import { isAxiosError } from 'axios'
 import { toast } from 'sonner'
 
 import { api } from '@/lib/api'
+import { getStoredAiModel } from '@/lib/ai-models'
 import type { AiModel, ApiListResponse, ApiResponse, DocumentType, DocumentVersion, GeneratedDocument } from '@/types'
 
 type DocumentListParams = {
@@ -83,7 +84,10 @@ export function useGenerateDocument() {
 
   return useMutation({
     mutationFn: async (payload: GenerateDocumentInput) => {
-      const response = await api.post<ApiResponse<GeneratedDocument>>('/documents/generate', payload)
+      const response = await api.post<ApiResponse<GeneratedDocument>>('/documents/generate', {
+        ...payload,
+        aiModel: payload.aiModel ?? getStoredAiModel(),
+      })
       return response.data.data
     },
     onSuccess: () => {

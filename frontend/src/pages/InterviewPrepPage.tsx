@@ -20,9 +20,10 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { aiModelOptions, getStoredAiModel, setStoredAiModel } from '@/lib/ai-models'
 import { cn } from '@/lib/utils'
 import type { InterviewSessionListItem } from '@/hooks/use-interviews'
-import type { Application, InterviewDifficulty, InterviewStatus, InterviewType } from '@/types'
+import type { AiModel, Application, InterviewDifficulty, InterviewStatus, InterviewType } from '@/types'
 
 const typeLabels: Record<InterviewType, string> = {
   TEXT: '텍스트',
@@ -66,6 +67,7 @@ export default function InterviewPrepPage() {
   const [applicationId, setApplicationId] = useState('')
   const [type, setType] = useState<InterviewType>('TEXT')
   const [difficulty, setDifficulty] = useState<InterviewDifficulty>('INTERMEDIATE')
+  const [selectedAiModel, setSelectedAiModel] = useState<AiModel>(() => getStoredAiModel())
   const { data: interviewsResponse, isPending, isError } = useInterviews()
   const { data: applicationsResponse } = useApplications({ limit: 100 })
   const createInterview = useCreateInterview()
@@ -175,6 +177,32 @@ export default function InterviewPrepPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="interview-ai-model">AI 모델</Label>
+                  <Select
+                    value={selectedAiModel}
+                    onValueChange={(value) => {
+                      setSelectedAiModel(value as AiModel)
+                      setStoredAiModel(value as AiModel)
+                    }}
+                  >
+                    <SelectTrigger id="interview-ai-model" className="w-full">
+                      <SelectValue placeholder="AI 모델 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {aiModelOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          <span className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-primary">{option.provider}</span>
+                            <span>{option.label}</span>
+                            <span className="text-xs text-muted-foreground">{option.description}</span>
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

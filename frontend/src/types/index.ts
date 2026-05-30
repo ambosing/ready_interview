@@ -86,7 +86,19 @@ export interface SwotAnalysis {
 
 export type JobPostingStatus = 'DRAFT' | 'ANALYZED' | 'APPLIED'
 export type DocumentType = 'RESUME' | 'PORTFOLIO'
-export type AiModel = 'gemini-3.1-pro-preview' | 'gemini-3.1-flash-lite-preview'
+export type AiModel =
+  | 'openai:gpt-5.5'
+  | 'openai:gpt-5.4'
+  | 'openai:gpt-5.4-mini'
+  | 'openai-codex:gpt-5.5'
+  | 'openai-codex:gpt-5.4'
+  | 'openai-codex:gpt-5.4-mini'
+  | 'anthropic:claude-opus-4-7'
+  | 'anthropic:claude-sonnet-4-6'
+  | 'anthropic:claude-haiku-4-5-20251001'
+  | 'gemini:gemini-3.1-pro-preview'
+  | 'gemini:gemini-3.5-flash'
+  | 'gemini:gemini-3.1-flash-lite'
 export type ApplicationStatus =
   | 'APPLIED'
   | 'SCREENING'
