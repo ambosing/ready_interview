@@ -80,7 +80,7 @@ export default function MockInterviewPage() {
   }
 
   const handleEndInterview = async () => {
-    const endedInterview = await endInterview.mutateAsync()
+    const endedInterview = await endInterview.mutateAsync({})
     navigate(`/interviews/${endedInterview.id}/feedback`)
   }
 

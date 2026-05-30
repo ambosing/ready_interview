@@ -29,14 +29,14 @@ export class InterviewController {
 
   @Post(':id/messages')
   async method4(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
-    const { content } = body; // Needs validation
-    const result = await this.service.sendInterviewMessage(user.userId, id, content);
+    const { content, aiModel } = body; // Needs validation
+    const result = await this.service.sendInterviewMessage(user.userId, id, content, aiModel);
     return { data: result };
   }
 
   @Post(':id/end')
-  async method5(@Param('id') id: string, @CurrentUser() user: any) {
-    const result = await this.service.endInterviewSession(user.userId, id);
+  async method5(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
+    const result = await this.service.endInterviewSession(user.userId, id, body?.aiModel);
     return { data: result };
   }
 

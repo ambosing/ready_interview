@@ -3,7 +3,8 @@ import { isAxiosError } from 'axios'
 import { toast } from 'sonner'
 
 import { api } from '@/lib/api'
-import type { ApiListResponse, ApiResponse, GeneratedDocument, JobPosting } from '@/types'
+import { getStoredAiModel } from '@/lib/ai-models'
+import type { AiModel, ApiListResponse, ApiResponse, GeneratedDocument, JobPosting } from '@/types'
 
 type JobPostingListParams = {
   page?: number
@@ -19,6 +20,10 @@ type CreateJobPostingInput = {
 
 type JobPostingDetail = JobPosting & {
   documents: GeneratedDocument[]
+}
+
+type AnalyzeJobPostingInput = {
+  aiModel?: AiModel
 }
 
 const jobPostingKeys = {
@@ -97,8 +102,10 @@ export function useAnalyzeJobPosting(id: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async () => {
-      const response = await api.post<ApiResponse<JobPosting>>(`/job-postings/${id}/analyze`)
+    mutationFn: async (payload?: AnalyzeJobPostingInput) => {
+      const response = await api.post<ApiResponse<JobPosting>>(`/job-postings/${id}/analyze`, {
+        aiModel: payload?.aiModel ?? getStoredAiModel(),
+      })
       return response.data.data
     },
     onSuccess: () => {

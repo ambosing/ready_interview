@@ -3,7 +3,9 @@ import { isAxiosError } from 'axios'
 import { toast } from 'sonner'
 
 import { api } from '@/lib/api'
+import { getStoredAiModel } from '@/lib/ai-models'
 import type {
+  AiModel,
   ApiListResponse,
   ApiResponse,
   Application,
@@ -22,6 +24,7 @@ type CreateInterviewInput = {
 type SendInterviewMessageInput = {
   id: string
   content: string
+  aiModel?: AiModel
 }
 
 type InterviewSessionListItem = InterviewSession & {
@@ -106,8 +109,11 @@ export function useSendInterviewMessage(id: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ content }: Omit<SendInterviewMessageInput, 'id'>) => {
-      const response = await api.post<ApiResponse<SendInterviewMessageResponse>>(`/interviews/${id}/messages`, { content })
+    mutationFn: async ({ content, aiModel }: Omit<SendInterviewMessageInput, 'id'>) => {
+      const response = await api.post<ApiResponse<SendInterviewMessageResponse>>(`/interviews/${id}/messages`, {
+        content,
+        aiModel: aiModel ?? getStoredAiModel(),
+      })
       return response.data.data
     },
     onSuccess: () => {
@@ -123,8 +129,10 @@ export function useEndInterview(id: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async () => {
-      const response = await api.post<ApiResponse<InterviewSession>>(`/interviews/${id}/end`)
+    mutationFn: async (payload?: { aiModel?: AiModel }) => {
+      const response = await api.post<ApiResponse<InterviewSession>>(`/interviews/${id}/end`, {
+        aiModel: payload?.aiModel ?? getStoredAiModel(),
+      })
       return response.data.data
     },
     onSuccess: () => {

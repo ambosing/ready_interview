@@ -2,12 +2,8 @@ import { DocumentType } from '@prisma/client';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ProfileService } from '../profile/profile.service.js';
-import { AiService, type AiGenerationModel } from '../ai/ai.service.js';
-
-const AI_GENERATION_MODELS = [
-  'gemini-3.1-pro-preview',
-  'gemini-3.1-flash-lite-preview',
-] as const;
+import { AiService } from '../ai/ai.service.js';
+import { resolveAiModel, type AiGenerationModel } from '../ai/ai-models.js';
 
 @Injectable()
 export class DocumentService {
@@ -22,9 +18,7 @@ export class DocumentService {
   }
 
   private resolveAiModel(aiModel?: string): AiGenerationModel {
-    return AI_GENERATION_MODELS.includes(aiModel as AiGenerationModel)
-      ? aiModel as AiGenerationModel
-      : 'gemini-3.1-pro-preview';
+    return resolveAiModel(aiModel);
   }
 
   async listDocuments(userId: string, page: number, limit: number) {

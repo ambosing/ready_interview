@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator'
 import { documentKeys, useGenerateDocument } from '@/hooks/use-documents'
 import { jobPostingKeys, useAnalyzeJobPosting, useJobPosting } from '@/hooks/use-job-postings'
+import { aiModelOptions, getStoredAiModel, setStoredAiModel } from '@/lib/ai-models'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { AiModel, DocumentType, JobPostingStatus } from '@/types'
@@ -20,19 +21,6 @@ const statusMap: Record<JobPostingStatus, { label: string; className: string }> 
   ANALYZED: { label: '분석 완료', className: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300' },
   APPLIED: { label: '지원 완료', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' },
 }
-
-const aiModelOptions: Array<{ value: AiModel; label: string; description: string }> = [
-  {
-    value: 'gemini-3.1-pro-preview',
-    label: 'Gemini 3.1 Pro',
-    description: '품질 우선',
-  },
-  {
-    value: 'gemini-3.1-flash-lite-preview',
-    label: 'Gemini 3.1 Flash Lite',
-    description: '속도 우선',
-  },
-]
 
 function parseStringArray(value: string | null) {
   if (!value) {
@@ -54,7 +42,7 @@ export default function JobPostingDetailPage() {
   const { data: jobPosting, isLoading } = useJobPosting(id)
   const analyzeJobPosting = useAnalyzeJobPosting(id)
   const generateDocument = useGenerateDocument()
-  const [selectedAiModel, setSelectedAiModel] = useState<AiModel>('gemini-3.1-pro-preview')
+  const [selectedAiModel, setSelectedAiModel] = useState<AiModel>(() => getStoredAiModel())
 
   const keywords = useMemo(() => parseStringArray(jobPosting?.analyzedKeywords ?? null), [jobPosting?.analyzedKeywords])
   const requirements = useMemo(() => parseStringArray(jobPosting?.analyzedRequirements ?? null), [jobPosting?.analyzedRequirements])
@@ -128,7 +116,7 @@ export default function JobPostingDetailPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {jobPosting.status === 'DRAFT' ? (
-                <Button className="w-full rounded-2xl" onClick={() => analyzeJobPosting.mutate()} disabled={analyzeJobPosting.isPending}>
+                <Button className="w-full rounded-2xl" onClick={() => analyzeJobPosting.mutate({ aiModel: selectedAiModel })} disabled={analyzeJobPosting.isPending}>
                   {analyzeJobPosting.isPending ? <LoaderCircle className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                   공고 분석 시작
                 </Button>
@@ -178,7 +166,13 @@ export default function JobPostingDetailPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="document-ai-model">AI 모델</Label>
-                <Select value={selectedAiModel} onValueChange={(value) => setSelectedAiModel(value as AiModel)}>
+                <Select
+                  value={selectedAiModel}
+                  onValueChange={(value) => {
+                    setSelectedAiModel(value as AiModel)
+                    setStoredAiModel(value as AiModel)
+                  }}
+                >
                   <SelectTrigger id="document-ai-model" className="w-full">
                     <SelectValue placeholder="AI 모델 선택" />
                   </SelectTrigger>
@@ -186,6 +180,7 @@ export default function JobPostingDetailPage() {
                     {aiModelOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         <span className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-primary">{option.provider}</span>
                           <span>{option.label}</span>
                           <span className="text-xs text-muted-foreground">{option.description}</span>
                         </span>
