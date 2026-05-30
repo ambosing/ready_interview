@@ -23,18 +23,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.1
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: npm run build
+        run: pnpm run build
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
@@ -55,21 +60,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.1
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma client
-        run: npx prisma generate
+        run: pnpm exec prisma generate
 
       - name: Build
-        run: npm run build
+        run: pnpm run build
 
       - name: Upload backend artifact
         uses: actions/upload-artifact@v4
@@ -77,99 +87,3 @@ jobs:
           name: backend-dist
           path: backend/dist
           if-no-files-found: error
-
-  deploy:
-    name: Deploy
-    runs-on: ubuntu-latest
-    needs:
-      - frontend
-      - backend
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    env:
-      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST || vars.DEPLOY_HOST || 'jimon-server' }}
-      DEPLOY_PATH: ${{ vars.DEPLOY_PATH || 'ready_interview' }}
-      FRONTEND_ROOT: ${{ vars.FRONTEND_ROOT || '/var/www/hirey' }}
-      BACKEND_PROCESS: ${{ vars.BACKEND_PROCESS || 'ready-interview-backend' }}
-      FRONTEND_PROCESS: ${{ vars.FRONTEND_PROCESS || 'ready-interview-frontend' }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v4
-        with:
-          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
-
-      - name: Prepare deploy directory
-        env:
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-        run: timeout 30s tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH' '$FRONTEND_ROOT'"
-
-      - name: Sync source to server
-        env:
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-        run: |
-          set -euo pipefail
-
-          tar \
-            --exclude '.git' \
-            --exclude '.github' \
-            --exclude 'node_modules' \
-            --exclude 'frontend/node_modules' \
-            --exclude 'frontend/dist' \
-            --exclude 'backend/node_modules' \
-            --exclude 'backend/dist' \
-            -czf - . \
-            | timeout 120s tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" "tar -xzf - -C '$DEPLOY_PATH'"
-
-      - name: Build and restart on server
-        env:
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-        run: |
-          timeout 600s tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" \
-            "DEPLOY_PATH='$DEPLOY_PATH' FRONTEND_ROOT='$FRONTEND_ROOT' BACKEND_PROCESS='$BACKEND_PROCESS' FRONTEND_PROCESS='$FRONTEND_PROCESS' bash -s" <<'REMOTE_SCRIPT'
-          set -euo pipefail
-
-          cd "$DEPLOY_PATH"
-
-          if [ -s "$HOME/.nvm/nvm.sh" ]; then
-            . "$HOME/.nvm/nvm.sh"
-            nvm install 22
-            nvm use 22
-          fi
-
-          node_major="$(node -p "process.versions.node.split('.')[0]")"
-          if [ "$node_major" -lt 22 ]; then
-            echo "Node.js 22 이상이 필요합니다. 현재 버전: $(node -v)"
-            exit 1
-          fi
-
-          npm --prefix frontend ci
-          npm --prefix frontend run build
-          find "$FRONTEND_ROOT" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-          cp -R frontend/dist/. "$FRONTEND_ROOT"/
-
-          npm --prefix backend ci
-          cd backend
-          npm exec prisma generate
-          npm exec prisma migrate deploy
-          npm run build
-          cd ..
-
-          if ! command -v pm2 >/dev/null 2>&1; then
-            npm install -g pm2
-          fi
-
-          if pm2 describe "$BACKEND_PROCESS" >/dev/null 2>&1; then
-            pm2 delete "$BACKEND_PROCESS"
-          fi
-          pm2 start dist/main.js --name "$BACKEND_PROCESS" --cwd backend
-
-          if pm2 describe "$FRONTEND_PROCESS" >/dev/null 2>&1; then
-            pm2 delete "$FRONTEND_PROCESS"
-          fi
-
-          pm2 save
-          REMOTE_SCRIPT
