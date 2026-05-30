@@ -2,6 +2,7 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "Hirey API",
+  "packageManager": "pnpm@10.8.1",
   "main": "dist/index.js",
   "scripts": {
     "dev": "nest start --watch",
