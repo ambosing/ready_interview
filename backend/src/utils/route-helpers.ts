@@ -26,3 +26,13 @@ export function parseJsonObject<T>(value: string | null | undefined, fallback: T
 export function serializeStringArray(values: string[]) {
   return JSON.stringify(values);
 }
+
+export function parsePaginationQuery(query: { page?: unknown; limit?: unknown }) {
+  const page = Number.parseInt(String(query.page ?? '1'), 10);
+  const limit = Number.parseInt(String(query.limit ?? '20'), 10);
+
+  return {
+    page: Number.isFinite(page) && page > 0 ? page : 1,
+    limit: Number.isFinite(limit) && limit > 0 ? limit : 20,
+  };
+}
