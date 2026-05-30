@@ -16,7 +16,7 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
   DATABASE_URL: z
     .string()
-    .default('postgresql://user:password@localhost:5432/hirey'),
+    .default('file:./prisma/dev.db'),
   JWT_SECRET: z.string().min(32).default('dev-only-jwt-secret-change-before-production'),
   JWT_REFRESH_SECRET: z.string().min(32).default('dev-only-refresh-secret-change-before-production'),
 }).superRefine((env, ctx) => {
