@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } fro
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { JobPostingService } from './job-posting.service.js';
+import { parsePaginationQuery } from '../utils/route-helpers.js';
 
 @Controller('job-postings')
 @UseGuards(AuthGuard)
@@ -10,7 +11,7 @@ export class JobPostingController {
 
   @Get('')
   async method1(@Query() query: any, @CurrentUser() user: any) {
-    const { page, limit } = query; // Needs validation
+    const { page, limit } = parsePaginationQuery(query);
     const { results, total } = await this.service.listJobPostings(user.userId, page, limit);
     return { data: results, total };
   }

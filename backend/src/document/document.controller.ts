@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } fro
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { DocumentService } from './document.service.js';
+import { parsePaginationQuery } from '../utils/route-helpers.js';
 
 @Controller('documents')
 @UseGuards(AuthGuard)
@@ -10,7 +11,7 @@ export class DocumentController {
 
   @Get('')
   async method1(@Query() query: any, @CurrentUser() user: any) {
-    const { page, limit } = query; // Needs validation
+    const { page, limit } = parsePaginationQuery(query);
     const { results, total } = await this.service.listDocuments(user.userId, page, limit);
     return { data: results, total };
   }
