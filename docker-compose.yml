@@ -1,0 +1,28 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      FRONTEND_URL: http://localhost:8080
+      DATABASE_URL: file:/app/data/dev.db
+      JWT_SECRET: change-this-jwt-secret-before-production-32
+      JWT_REFRESH_SECRET: change-this-refresh-secret-before-production-32
+    volumes:
+      - backend_data:/app/data
+    ports:
+      - "3001:3001"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  backend_data:
