@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } fro
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { ApplicationService } from './application.service.js';
+import { parsePaginationQuery } from '../utils/route-helpers.js';
 
 @Controller('applications')
 @UseGuards(AuthGuard)
@@ -10,7 +11,8 @@ export class ApplicationController {
 
   @Get('')
   async method1(@Query() query: any, @CurrentUser() user: any) {
-    const { page, limit, status } = query; // Needs validation
+    const { status } = query; // Needs validation
+    const { page, limit } = parsePaginationQuery(query);
     const { results, total } = await this.service.listApplications(user.userId, page, limit, status);
     return { data: results, total };
   }
