@@ -3,7 +3,7 @@ import { isAxiosError } from 'axios'
 import { toast } from 'sonner'
 
 import { api } from '@/lib/api'
-import { getStoredAiModel } from '@/lib/ai-models'
+import { getAiProviderConnectionForModel, getStoredAiModel } from '@/lib/ai-models'
 import type {
   AiModel,
   ApiListResponse,
@@ -117,9 +117,13 @@ export function useExpectedInterviewQuestions(applicationId: string, aiModel?: A
     enabled: Boolean(applicationId),
     queryFn: async () => {
       try {
+        const selectedAiModel = aiModel ?? getStoredAiModel()
         const response = await api.post<ApiResponse<ExpectedInterviewQuestion[]>>(
           `/interviews/applications/${applicationId}/questions`,
-          { aiModel: aiModel ?? getStoredAiModel() },
+          {
+            aiModel: selectedAiModel,
+            aiProviderConnection: getAiProviderConnectionForModel(selectedAiModel),
+          },
         )
         return response.data.data
       } catch (error) {
@@ -135,9 +139,11 @@ export function useSendInterviewMessage(id: string) {
 
   return useMutation({
     mutationFn: async ({ content, aiModel }: Omit<SendInterviewMessageInput, 'id'>) => {
+      const selectedAiModel = aiModel ?? getStoredAiModel()
       const response = await api.post<ApiResponse<SendInterviewMessageResponse>>(`/interviews/${id}/messages`, {
         content,
-        aiModel: aiModel ?? getStoredAiModel(),
+        aiModel: selectedAiModel,
+        aiProviderConnection: getAiProviderConnectionForModel(selectedAiModel),
       })
       return response.data.data
     },
@@ -155,8 +161,10 @@ export function useEndInterview(id: string) {
 
   return useMutation({
     mutationFn: async (payload?: { aiModel?: AiModel }) => {
+      const aiModel = payload?.aiModel ?? getStoredAiModel()
       const response = await api.post<ApiResponse<InterviewSession>>(`/interviews/${id}/end`, {
-        aiModel: payload?.aiModel ?? getStoredAiModel(),
+        aiModel,
+        aiProviderConnection: getAiProviderConnectionForModel(aiModel),
       })
       return response.data.data
     },

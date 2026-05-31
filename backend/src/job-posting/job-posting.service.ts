@@ -1,7 +1,7 @@
 import { JobPostingStatus } from '@prisma/client';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { AiService } from '../ai/ai.service.js';
+import { AiService, type AiProviderConnection } from '../ai/ai.service.js';
 import { resolveAiModel } from '../ai/ai-models.js';
 import { parseJsonArray, serializeStringArray } from '../utils/route-helpers.js';
 
@@ -90,11 +90,11 @@ export class JobPostingService {
     await this.prisma.jobPosting.delete({ where: { id } });
   }
 
-  async analyzeJobPostingById(userId: string, id: string, aiModel?: string) {
+  async analyzeJobPostingById(userId: string, id: string, aiModel?: string, aiProviderConnection?: AiProviderConnection) {
     const existing = await this.prisma.jobPosting.findFirst({ where: { id, userId } });
     if (!existing) throw this.createNotFoundError();
 
-    const analysis = await this.aiService.analyzeJobPosting(existing.content, resolveAiModel(aiModel));
+    const analysis = await this.aiService.analyzeJobPosting(existing.content, resolveAiModel(aiModel), aiProviderConnection);
     const jobPosting = await this.prisma.jobPosting.update({
       where: { id },
       data: {

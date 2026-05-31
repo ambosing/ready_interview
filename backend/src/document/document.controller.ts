@@ -26,7 +26,13 @@ export class DocumentController {
   @Post('generate')
   async method3(@Body() body: any, @CurrentUser() user: any) {
     const payload = parseBody(documentGenerateSchema, body);
-    const result = await this.service.generateDocument(user.userId, payload.type, payload.jobPostingId, payload.aiModel);
+    const result = await this.service.generateDocument(
+      user.userId,
+      payload.type,
+      payload.jobPostingId,
+      payload.aiModel,
+      payload.aiProviderConnection,
+    );
     return { data: result };
   }
 

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { readFileSync } from 'node:fs';
-import { DEFAULT_AI_MODEL, parseAiModel, type AiGenerationModel } from './ai-models.js';
+import { DEFAULT_AI_MODEL, parseAiModel, type AiGenerationModel, type AiProvider } from './ai-models.js';
 
 // Types ported from types.ts
 export interface ProfileForGeneration {
@@ -49,6 +49,21 @@ interface CodexOAuthPayload {
   expires_at?: string | number;
   accountId?: string;
   account_id?: string;
+}
+
+export interface AiProviderConnection {
+  provider: AiProvider;
+  authType: 'api-key' | 'oauth';
+  apiKey?: string;
+  accessToken?: string;
+  oauthJson?: string;
+  responsesUrl?: string;
+}
+
+interface GenerateTextOptions {
+  systemInstruction?: string;
+  json?: boolean;
+  aiProviderConnection?: AiProviderConnection;
 }
 
 @Injectable()
@@ -277,7 +292,20 @@ ${projects}
     }
   }
 
-  private getCodexAccessToken(): string {
+  private getProviderConnection(provider: AiProvider, connection?: AiProviderConnection) {
+    return connection?.provider === provider ? connection : undefined;
+  }
+
+  private getCodexAccessToken(connection?: AiProviderConnection): string {
+    if (connection?.accessToken) {
+      return connection.accessToken;
+    }
+
+    const requestPayload = this.parseCodexOAuthPayload(connection?.oauthJson);
+    if (requestPayload?.access || requestPayload?.access_token || requestPayload?.token) {
+      return requestPayload.access ?? requestPayload.access_token ?? requestPayload.token ?? '';
+    }
+
     if (process.env.OPENAI_CODEX_ACCESS_TOKEN) {
       return process.env.OPENAI_CODEX_ACCESS_TOKEN;
     }
@@ -297,11 +325,12 @@ ${projects}
     throw new Error('OPENAI_CODEX_ACCESS_TOKEN, OPENAI_CODEX_OAUTH_JSON, or OPENAI_CODEX_OAUTH_FILE is not configured');
   }
 
-  private async generateText(prompt: string, aiModel: AiGenerationModel = DEFAULT_AI_MODEL, options: { systemInstruction?: string; json?: boolean } = {}) {
+  private async generateText(prompt: string, aiModel: AiGenerationModel = DEFAULT_AI_MODEL, options: GenerateTextOptions = {}) {
     const { provider, model } = parseAiModel(aiModel);
+    const providerConnection = this.getProviderConnection(provider, options.aiProviderConnection);
 
     if (provider === 'openai') {
-      const apiKey = process.env.OPENAI_API_KEY;
+      const apiKey = providerConnection?.apiKey ?? process.env.OPENAI_API_KEY;
       if (!apiKey) throw new Error('OPENAI_API_KEY is not configured');
 
       const data = await this.fetchJson<OpenAiTextResponse>(
@@ -325,8 +354,8 @@ ${projects}
     }
 
     if (provider === 'openai-codex') {
-      const accessToken = this.getCodexAccessToken();
-      const responsesUrl = process.env.OPENAI_CODEX_RESPONSES_URL || 'https://chatgpt.com/backend-api/codex/responses';
+      const accessToken = this.getCodexAccessToken(providerConnection);
+      const responsesUrl = providerConnection?.responsesUrl || process.env.OPENAI_CODEX_RESPONSES_URL || 'https://chatgpt.com/backend-api/codex/responses';
 
       const data = await this.fetchJson<OpenAiTextResponse>(
         responsesUrl,
@@ -349,7 +378,7 @@ ${projects}
     }
 
     if (provider === 'anthropic') {
-      const apiKey = process.env.ANTHROPIC_API_KEY;
+      const apiKey = providerConnection?.apiKey ?? process.env.ANTHROPIC_API_KEY;
       if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not configured');
 
       const data = await this.fetchJson<{ content?: Array<{ type: string; text?: string }> }>(
@@ -373,7 +402,7 @@ ${projects}
       return data.content?.map(content => content.type === 'text' ? content.text ?? '' : '').join('') ?? '';
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = providerConnection?.apiKey ?? process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error('GEMINI_API_KEY is not configured');
 
     const data = await this.fetchJson<{ candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }>(
@@ -407,7 +436,11 @@ ${projects}
     }
   }
 
-  async analyzeJobPosting(content: string, aiModel: AiGenerationModel = DEFAULT_AI_MODEL): Promise<JobPostingAnalysisResult> {
+  async analyzeJobPosting(
+    content: string,
+    aiModel: AiGenerationModel = DEFAULT_AI_MODEL,
+    aiProviderConnection?: AiProviderConnection,
+  ): Promise<JobPostingAnalysisResult> {
     const prompt = `
 다음 채용 공고를 분석하여 핵심 키워드(최대 6개), 주요 요구사항(최대 4문장), 그리고 회사/직무에 대한 전반적인 요약 정보를 추출해 주세요.
 결과는 반드시 JSON 형식으로만 응답해야 합니다.
@@ -423,14 +456,19 @@ ${content}
 }`;
 
     try {
-      const text = await this.generateText(prompt, aiModel, { json: true });
+      const text = await this.generateText(prompt, aiModel, { json: true, aiProviderConnection });
       return this.parseJsonResponse(text || '{}', this.fallbackJobPostingAnalysis(content));
     } catch (e) {
       return this.fallbackJobPostingAnalysis(content);
     }
   }
 
-  async generateResume(profile: ProfileForGeneration, jobPosting: JobPostingForGeneration, aiModel: AiGenerationModel = DEFAULT_AI_MODEL): Promise<string> {
+  async generateResume(
+    profile: ProfileForGeneration,
+    jobPosting: JobPostingForGeneration,
+    aiModel: AiGenerationModel = DEFAULT_AI_MODEL,
+    aiProviderConnection?: AiProviderConnection,
+  ): Promise<string> {
     const prompt = `
 당신은 최고의 커리어 컨설턴트이자 이력서 작성 전문가입니다.
 사용자의 프로필과 지원하려는 채용 공고 정보를 바탕으로, 해당 직무에 가장 적합한 형태의 '맞춤형 이력서'를 Markdown 형식으로 작성해 주세요.
@@ -451,13 +489,18 @@ ${this.profileToText(profile)}
 `;
 
     try {
-      return await this.generateText(prompt, aiModel) || this.fallbackResume(profile, jobPosting);
+      return await this.generateText(prompt, aiModel, { aiProviderConnection }) || this.fallbackResume(profile, jobPosting);
     } catch (e) {
       return this.fallbackResume(profile, jobPosting);
     }
   }
 
-  async generatePortfolio(profile: ProfileForGeneration, jobPosting: JobPostingForGeneration, aiModel: AiGenerationModel = DEFAULT_AI_MODEL): Promise<string> {
+  async generatePortfolio(
+    profile: ProfileForGeneration,
+    jobPosting: JobPostingForGeneration,
+    aiModel: AiGenerationModel = DEFAULT_AI_MODEL,
+    aiProviderConnection?: AiProviderConnection,
+  ): Promise<string> {
     const prompt = `
 당신은 최고의 커리어 컨설턴트이자 포트폴리오 작성 전문가입니다.
 사용자의 프로필과 지원하려는 채용 공고 정보를 바탕으로, 해당 직무에 가장 적합한 형태의 '맞춤형 포트폴리오(경력 기술서)'를 Markdown 형식으로 작성해 주세요.
@@ -478,13 +521,18 @@ ${this.profileToText(profile)}
 `;
 
     try {
-      return await this.generateText(prompt, aiModel) || this.fallbackPortfolio(profile, jobPosting);
+      return await this.generateText(prompt, aiModel, { aiProviderConnection }) || this.fallbackPortfolio(profile, jobPosting);
     } catch (e) {
       return this.fallbackPortfolio(profile, jobPosting);
     }
   }
 
-  async generateInterviewerResponse(messages: MessageForInterview[], difficulty: 'BASIC' | 'INTERMEDIATE' | 'ADVANCED', aiModel: AiGenerationModel = DEFAULT_AI_MODEL): Promise<string> {
+  async generateInterviewerResponse(
+    messages: MessageForInterview[],
+    difficulty: 'BASIC' | 'INTERMEDIATE' | 'ADVANCED',
+    aiModel: AiGenerationModel = DEFAULT_AI_MODEL,
+    aiProviderConnection?: AiProviderConnection,
+  ): Promise<string> {
     const systemInstruction = `
 당신은 채용 면접관입니다. 사용자는 지원자입니다.
 면접 난이도는 ${difficulty}입니다. (BASIC: 기초적인 직무/인성 질문, INTERMEDIATE: 실무 경험 기반의 구체적 질문, ADVANCED: 압박 면접, 엣지 케이스, 심도 깊은 기술/경험 검증)
@@ -497,13 +545,17 @@ ${this.profileToText(profile)}
       : '지원자: 면접을 시작하겠습니다.';
 
     try {
-      return await this.generateText(prompt, aiModel, { systemInstruction }) || this.fallbackInterviewerResponse(messages, difficulty);
+      return await this.generateText(prompt, aiModel, { systemInstruction, aiProviderConnection }) || this.fallbackInterviewerResponse(messages, difficulty);
     } catch (e) {
       return this.fallbackInterviewerResponse(messages, difficulty);
     }
   }
 
-  async generateInterviewFeedback(messages: MessageForInterview[], aiModel: AiGenerationModel = DEFAULT_AI_MODEL): Promise<InterviewFeedbackResult> {
+  async generateInterviewFeedback(
+    messages: MessageForInterview[],
+    aiModel: AiGenerationModel = DEFAULT_AI_MODEL,
+    aiProviderConnection?: AiProviderConnection,
+  ): Promise<InterviewFeedbackResult> {
     const chatHistory = messages.map(m => `${m.role === 'USER' ? '지원자' : '면접관'}: ${m.content}`).join('\n\n');
     
     const prompt = `
@@ -543,14 +595,18 @@ ${chatHistory}
 `;
 
     try {
-      const text = await this.generateText(prompt, aiModel, { json: true });
+      const text = await this.generateText(prompt, aiModel, { json: true, aiProviderConnection });
       return this.parseJsonResponse(text || '{}', this.fallbackInterviewFeedback(messages));
     } catch (e) {
       return this.fallbackInterviewFeedback(messages);
     }
   }
 
-  async generateExpectedQuestions(jobPosting: JobPostingForGeneration, aiModel: AiGenerationModel = DEFAULT_AI_MODEL): Promise<ExpectedInterviewQuestion[]> {
+  async generateExpectedQuestions(
+    jobPosting: JobPostingForGeneration,
+    aiModel: AiGenerationModel = DEFAULT_AI_MODEL,
+    aiProviderConnection?: AiProviderConnection,
+  ): Promise<ExpectedInterviewQuestion[]> {
     const prompt = `
 다음 채용 공고를 바탕으로 예상 면접 질문 5개와 각 질문의 답변 가이드를 JSON 배열로 작성해 주세요.
 각 항목은 question, guide 필드를 가져야 합니다.
@@ -567,7 +623,7 @@ ${jobPosting.content}
 ]`;
 
     try {
-      const text = await this.generateText(prompt, aiModel, { json: true });
+      const text = await this.generateText(prompt, aiModel, { json: true, aiProviderConnection });
       const parsed = this.parseJsonResponse<ExpectedInterviewQuestion[] | { questions?: ExpectedInterviewQuestion[] }>(
         text || '[]',
         this.fallbackExpectedQuestions(jobPosting),

@@ -34,6 +34,16 @@ const nullableDateValue = z.preprocess((value) => {
 const stringArray = z.array(z.string().trim().min(1)).default([]);
 
 const aiModelSchema = z.string().trim().min(1).optional();
+const aiProviderConnectionSchema = z.object({
+  provider: z.enum(['openai', 'openai-codex', 'anthropic', 'gemini']),
+  authType: z.enum(['api-key', 'oauth']),
+  apiKey: z.string().trim().min(1).optional(),
+  accessToken: z.string().trim().min(1).optional(),
+  oauthJson: z.string().trim().min(1).optional(),
+  responsesUrl: z.string().trim().url().optional(),
+}).optional();
+
+export type AiProviderConnectionPayload = z.infer<typeof aiProviderConnectionSchema>;
 
 export function parseBody<T>(schema: z.ZodType<T>, body: unknown): T {
   try {
@@ -156,12 +166,14 @@ export const jobPostingUpdateSchema = jobPostingCreateSchema.partial();
 
 export const aiModelBodySchema = z.object({
   aiModel: aiModelSchema,
+  aiProviderConnection: aiProviderConnectionSchema,
 });
 
 export const documentGenerateSchema = z.object({
   type: z.enum(['RESUME', 'PORTFOLIO']),
   jobPostingId: z.string().trim().min(1),
   aiModel: aiModelSchema,
+  aiProviderConnection: aiProviderConnectionSchema,
 });
 
 export const documentUpdateSchema = z.object({
@@ -192,6 +204,7 @@ export const interviewCreateSchema = z.object({
 export const interviewMessageSchema = z.object({
   content: z.string().trim().min(1),
   aiModel: aiModelSchema,
+  aiProviderConnection: aiProviderConnectionSchema,
 });
 
 export const selfEvaluationCreateSchema = z.object({
