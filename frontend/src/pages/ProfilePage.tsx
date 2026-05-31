@@ -1,4 +1,4 @@
-import { BookOpenText, BriefcaseBusiness, FolderKanban, GraduationCap, IdCard, Sparkles, Target, Trophy } from 'lucide-react'
+import { BookOpenText, Bot, BriefcaseBusiness, FolderKanban, GraduationCap, IdCard, Sparkles, Target, Trophy } from 'lucide-react'
 
 import { BasicInfoSection } from '@/components/profile/BasicInfoSection'
 import { CareerSection } from '@/components/profile/CareerSection'
@@ -8,6 +8,7 @@ import { ProfileCompleteness } from '@/components/profile/ProfileCompleteness'
 import { ProjectSection } from '@/components/profile/ProjectSection'
 import { SkillSection } from '@/components/profile/SkillSection'
 import { SwotSection } from '@/components/profile/SwotSection'
+import { AiProviderSettings } from '@/components/settings/AiProviderSettings'
 import { Card, CardContent } from '@/components/ui/card'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -23,6 +24,7 @@ const tabItems = [
   { value: 'project', label: '프로젝트', icon: FolderKanban },
   { value: 'skill', label: '기술', icon: Sparkles },
   { value: 'swot', label: 'SWOT', icon: Target },
+  { value: 'ai', label: 'AI 설정', icon: Bot },
 ] as const
 
 export default function ProfilePage() {
@@ -96,6 +98,9 @@ export default function ProfilePage() {
         </TabsContent>
         <TabsContent value="swot">
           <SwotSection swotAnalysis={profile.swotAnalysis} />
+        </TabsContent>
+        <TabsContent value="ai">
+          <AiProviderSettings />
         </TabsContent>
       </Tabs>
     </div>

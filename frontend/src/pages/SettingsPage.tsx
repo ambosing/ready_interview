@@ -1,8 +1,9 @@
 import { isAxiosError } from 'axios'
-import { Bell, Bot, KeyRound, LoaderCircle, ShieldAlert, UserRound } from 'lucide-react'
+import { Bell, KeyRound, LoaderCircle, ShieldAlert, UserRound } from 'lucide-react'
 import { useEffect, useMemo, useState, type ComponentProps } from 'react'
 import { toast } from 'sonner'
 
+import { AiProviderSettings } from '@/components/settings/AiProviderSettings'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -16,12 +17,10 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import { aiModelOptions, getStoredAiModel, setStoredAiModel } from '@/lib/ai-models'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
-import type { AiModel, ApiResponse, User } from '@/types'
+import type { ApiResponse, User } from '@/types'
 
 type NotificationSettings = {
   emailSummary: boolean
@@ -87,7 +86,6 @@ export default function SettingsPage() {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [selectedAiModel, setSelectedAiModel] = useState<AiModel>(() => getStoredAiModel())
   const [notifications, setNotifications] = useState<NotificationSettings>(initialNotifications)
   const [isSavingAccount, setIsSavingAccount] = useState(false)
   const [isSavingPassword, setIsSavingPassword] = useState(false)
@@ -97,7 +95,6 @@ export default function SettingsPage() {
   }, [user?.name])
 
   const canSaveName = useMemo(() => name.trim().length > 0 && name.trim() !== (user?.name ?? ''), [name, user?.name])
-  const selectedAiModelOption = aiModelOptions.find((option) => option.value === selectedAiModel)
 
   const handleAccountSubmit: NonNullable<ComponentProps<'form'>['onSubmit']> = async (event) => {
     event.preventDefault()
@@ -253,49 +250,7 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/60">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Bot className="size-4 text-primary" />
-              <CardTitle>AI 모델 설정</CardTitle>
-            </div>
-            <CardDescription>공고 분석, 서류 생성, 모의 면접에 사용할 기본 프로바이더와 모델을 선택합니다.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="settings-ai-model">기본 AI 모델</Label>
-              <Select
-                value={selectedAiModel}
-                onValueChange={(value) => {
-                  setSelectedAiModel(value as AiModel)
-                  setStoredAiModel(value as AiModel)
-                  toast.success('AI 모델 기본값이 저장되었습니다.')
-                }}
-              >
-                <SelectTrigger id="settings-ai-model" className="w-full">
-                  <SelectValue placeholder="AI 모델 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  {aiModelOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      <span className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-primary">{option.provider}</span>
-                        <span>{option.label}</span>
-                        <span className="text-xs text-muted-foreground">{option.description}</span>
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {selectedAiModelOption ? (
-              <div className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                현재 기본값: {selectedAiModelOption.provider} · {selectedAiModelOption.label}
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
+        <AiProviderSettings />
 
         <Card className="border-border/60">
           <CardHeader>

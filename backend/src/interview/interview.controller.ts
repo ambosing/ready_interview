@@ -29,7 +29,12 @@ export class InterviewController {
   @Post('applications/:applicationId/questions')
   async methodQuestions(@Param('applicationId') applicationId: string, @Body() body: any, @CurrentUser() user: any) {
     const payload = parseBody(aiModelBodySchema, body);
-    const result = await this.service.getExpectedQuestions(user.userId, applicationId, payload.aiModel);
+    const result = await this.service.getExpectedQuestions(
+      user.userId,
+      applicationId,
+      payload.aiModel,
+      payload.aiProviderConnection,
+    );
     return { data: result };
   }
 
@@ -43,14 +48,20 @@ export class InterviewController {
   @Post(':id/messages')
   async method4(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
     const payload = parseBody(interviewMessageSchema, body);
-    const result = await this.service.sendInterviewMessage(user.userId, id, payload.content, payload.aiModel);
+    const result = await this.service.sendInterviewMessage(
+      user.userId,
+      id,
+      payload.content,
+      payload.aiModel,
+      payload.aiProviderConnection,
+    );
     return { data: result };
   }
 
   @Post(':id/end')
   async method5(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
     const payload = parseBody(aiModelBodySchema, body);
-    const result = await this.service.endInterviewSession(user.userId, id, payload.aiModel);
+    const result = await this.service.endInterviewSession(user.userId, id, payload.aiModel, payload.aiProviderConnection);
     return { data: result };
   }
 
