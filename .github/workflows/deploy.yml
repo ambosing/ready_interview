@@ -21,52 +21,36 @@ jobs:
     env:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST || vars.DEPLOY_HOST || 'jimon-server' }}
       DEPLOY_PATH: ${{ vars.DEPLOY_PATH || 'ready_interview' }}
-      FRONTEND_ROOT: ${{ vars.FRONTEND_ROOT || '/var/www/hirey' }}
       BACKEND_PROCESS: ${{ vars.BACKEND_PROCESS || 'ready-interview-backend' }}
       FRONTEND_PROCESS: ${{ vars.FRONTEND_PROCESS || 'ready-interview-frontend' }}
+      FRONTEND_URL: ${{ vars.FRONTEND_URL || 'http://localhost:8080' }}
+      BACKEND_PORT: ${{ vars.BACKEND_PORT || '3001' }}
+      FRONTEND_PORT: ${{ vars.FRONTEND_PORT || '8080' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.8.1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build frontend
-        run: pnpm --dir frontend run build
-
-      - name: Build backend
-        run: |
-          pnpm --dir backend exec prisma generate
-          pnpm --dir backend run build
-
-      - name: Pack build artifacts
+      - name: Pack deploy source
         run: |
           set -euo pipefail
 
           rm -rf release
-          mkdir -p release/app/backend release/app/frontend release/frontend
+          mkdir -p release
 
-          cp package.json pnpm-lock.yaml pnpm-workspace.yaml release/app/
-          cp backend/package.json backend/prisma.config.ts release/app/backend/
-          cp -R backend/dist backend/prisma release/app/backend/
-          cp frontend/package.json release/app/frontend/
-          cp -R frontend/dist/. release/frontend/
-
-          tar -czf release/app.tgz -C release/app .
-          tar -czf release/frontend.tgz -C release/frontend .
+          tar \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='release' \
+            --exclude='node_modules' \
+            --exclude='backend/node_modules' \
+            --exclude='frontend/node_modules' \
+            --exclude='backend/dist' \
+            --exclude='frontend/dist' \
+            --exclude='.env' \
+            --exclude='backend/.env' \
+            --exclude='backend/prisma/dev.db' \
+            -czf release/app.tgz .
 
       - name: Connect to Tailscale
         uses: tailscale/github-action@v4
@@ -76,7 +60,7 @@ jobs:
       - name: Prepare deploy directory
         env:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-        run: timeout 30s tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH' '$FRONTEND_ROOT'"
+        run: timeout 30s tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH'"
 
       - name: Sync source to server
         env:
@@ -85,52 +69,69 @@ jobs:
           set -euo pipefail
 
           timeout 30s tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" \
-            "find '$DEPLOY_PATH' -mindepth 1 -maxdepth 1 ! -name backend -exec rm -rf {} + && mkdir -p '$DEPLOY_PATH/backend' && find '$DEPLOY_PATH/backend' -mindepth 1 -maxdepth 1 ! -name prisma -exec rm -rf {} + && find '$FRONTEND_ROOT' -mindepth 1 -maxdepth 1 -exec rm -rf {} +"
+            "find '$DEPLOY_PATH' -mindepth 1 -maxdepth 1 ! -name .env -exec rm -rf {} +"
 
           timeout 120s tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" "tar -xzf - -C '$DEPLOY_PATH'" < release/app.tgz
-          timeout 120s tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" "tar -xzf - -C '$FRONTEND_ROOT'" < release/frontend.tgz
 
-      - name: Build and restart on server
+      - name: Write Docker environment
+        env:
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_CODEX_ACCESS_TOKEN: ${{ secrets.OPENAI_CODEX_ACCESS_TOKEN }}
+          OPENAI_CODEX_OAUTH_JSON: ${{ secrets.OPENAI_CODEX_OAUTH_JSON }}
+          OPENAI_CODEX_OAUTH_FILE: ${{ secrets.OPENAI_CODEX_OAUTH_FILE }}
+          OPENAI_CODEX_RESPONSES_URL: ${{ vars.OPENAI_CODEX_RESPONSES_URL || 'https://chatgpt.com/backend-api/codex/responses' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [ "${#JWT_SECRET}" -lt 32 ] || [ "${#JWT_REFRESH_SECRET}" -lt 32 ]; then
+            echo "JWT_SECRET and JWT_REFRESH_SECRET must be configured as GitHub Secrets with at least 32 characters."
+            exit 1
+          fi
+
+          {
+            printf 'NODE_ENV=production\n'
+            printf 'PORT=3001\n'
+            printf 'BACKEND_PORT=%s\n' "$BACKEND_PORT"
+            printf 'FRONTEND_PORT=%s\n' "$FRONTEND_PORT"
+            printf 'FRONTEND_URL=%s\n' "$FRONTEND_URL"
+            printf 'DATABASE_URL=file:/app/data/dev.db\n'
+            printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
+            printf 'JWT_REFRESH_SECRET=%s\n' "$JWT_REFRESH_SECRET"
+            printf 'OPENAI_API_KEY=%s\n' "$OPENAI_API_KEY"
+            printf 'OPENAI_CODEX_ACCESS_TOKEN=%s\n' "$OPENAI_CODEX_ACCESS_TOKEN"
+            printf 'OPENAI_CODEX_OAUTH_JSON=%s\n' "$OPENAI_CODEX_OAUTH_JSON"
+            printf 'OPENAI_CODEX_OAUTH_FILE=%s\n' "$OPENAI_CODEX_OAUTH_FILE"
+            printf 'OPENAI_CODEX_RESPONSES_URL=%s\n' "$OPENAI_CODEX_RESPONSES_URL"
+            printf 'ANTHROPIC_API_KEY=%s\n' "$ANTHROPIC_API_KEY"
+            printf 'GEMINI_API_KEY=%s\n' "$GEMINI_API_KEY"
+          } | timeout 30s tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" "cat > '$DEPLOY_PATH/.env'"
+
+      - name: Build and restart Docker services
         env:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
-          timeout 600s tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" \
-            "DEPLOY_PATH='$DEPLOY_PATH' FRONTEND_ROOT='$FRONTEND_ROOT' BACKEND_PROCESS='$BACKEND_PROCESS' FRONTEND_PROCESS='$FRONTEND_PROCESS' bash -s" <<'REMOTE_SCRIPT'
+          timeout 900s tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" \
+            "DEPLOY_PATH='$DEPLOY_PATH' BACKEND_PROCESS='$BACKEND_PROCESS' FRONTEND_PROCESS='$FRONTEND_PROCESS' bash -s" <<'REMOTE_SCRIPT'
           set -euo pipefail
 
           cd "$DEPLOY_PATH"
 
-          if [ -s "$HOME/.nvm/nvm.sh" ]; then
-            . "$HOME/.nvm/nvm.sh"
-            nvm install 22
-            nvm use 22
-          fi
-
-          node_major="$(node -p "process.versions.node.split('.')[0]")"
-          if [ "$node_major" -lt 22 ]; then
-            echo "Node.js 22 이상이 필요합니다. 현재 버전: $(node -v)"
+          if ! docker compose version >/dev/null 2>&1; then
+            echo "Docker Compose v2 is required on the deploy host."
             exit 1
           fi
 
-          corepack enable
-          corepack prepare pnpm@10.8.1 --activate
-
-          pnpm install --frozen-lockfile --filter backend...
-          pnpm --dir backend exec prisma generate
-          pnpm --dir backend exec prisma migrate deploy
-
-          if ! command -v pm2 >/dev/null 2>&1; then
-            pnpm add -g pm2
+          if command -v pm2 >/dev/null 2>&1; then
+            pm2 delete "$BACKEND_PROCESS" >/dev/null 2>&1 || true
+            pm2 delete "$FRONTEND_PROCESS" >/dev/null 2>&1 || true
+            pm2 save >/dev/null 2>&1 || true
           fi
 
-          if pm2 describe "$BACKEND_PROCESS" >/dev/null 2>&1; then
-            pm2 delete "$BACKEND_PROCESS"
-          fi
-          pm2 start dist/main.js --name "$BACKEND_PROCESS" --cwd backend
-
-          if pm2 describe "$FRONTEND_PROCESS" >/dev/null 2>&1; then
-            pm2 delete "$FRONTEND_PROCESS"
-          fi
-
-          pm2 save
+          docker compose up --build -d
+          docker compose ps
           REMOTE_SCRIPT
