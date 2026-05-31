@@ -7,7 +7,7 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${PORT:-3001}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
-      DATABASE_URL: ${DATABASE_URL:-file:/app/data/dev.db}
+      DATABASE_URL: ${DOCKER_DATABASE_URL:-file:/app/data/dev.db}
       JWT_SECRET: ${JWT_SECRET:-change-this-jwt-secret-before-production-32}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-this-refresh-secret-before-production-32}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}

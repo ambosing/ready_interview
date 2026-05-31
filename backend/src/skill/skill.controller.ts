@@ -1,9 +1,10 @@
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ProfileService } from '../profile/profile.service.js';
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { SkillService } from './skill.service.js';
+import { parseBody, skillCreateSchema, skillUpdateSchema } from '../utils/validation.js';
 
 @Controller('skills')
 @UseGuards(AuthGuard)
@@ -27,7 +28,7 @@ export class SkillController {
   @Post('')
   async method2(@Body() body: any, @CurrentUser() user: any) {
     const profileId = await this.profileService.getProfileIdByUserId(user.userId);
-    const payload = body; // Needs validation
+    const payload = parseBody(skillCreateSchema, body);
     const result = await this.prisma.skill.create({
       data: {
         profileId,
@@ -42,7 +43,7 @@ export class SkillController {
 
   @Put(':id')
   async method3(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
-    const payload = body; // Needs validation
+    const payload = parseBody(skillUpdateSchema, body);
     const existing = await this.prisma.skill.findFirst({
       where: {
         id,

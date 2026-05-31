@@ -1,9 +1,10 @@
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ProfileService } from '../profile/profile.service.js';
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { CareerService } from './career.service.js';
+import { careerCreateSchema, careerUpdateSchema, parseBody } from '../utils/validation.js';
 
 @Controller('careers')
 @UseGuards(AuthGuard)
@@ -27,7 +28,7 @@ export class CareerController {
   @Post('')
   async method2(@Body() body: any, @CurrentUser() user: any) {
     const profileId = await this.profileService.getProfileIdByUserId(user.userId);
-    const payload = body; // Needs validation
+    const payload = parseBody(careerCreateSchema, body);
     const result = await this.prisma.career.create({
       data: {
         profileId,
@@ -46,7 +47,7 @@ export class CareerController {
 
   @Put(':id')
   async method3(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
-    const payload = body; // Needs validation
+    const payload = parseBody(careerUpdateSchema, body);
     const existing = await this.prisma.career.findFirst({
       where: {
         id,

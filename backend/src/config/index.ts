@@ -16,7 +16,10 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
   DATABASE_URL: z
     .string()
-    .default('file:./prisma/dev.db'),
+    .default('file:./prisma/dev.db')
+    .refine((value) => value.startsWith('file:'), {
+      message: 'DATABASE_URL must use a file: SQLite URL for this build',
+    }),
   JWT_SECRET: z.string().min(32).default('dev-only-jwt-secret-change-before-production'),
   JWT_REFRESH_SECRET: z.string().min(32).default('dev-only-refresh-secret-change-before-production'),
 }).superRefine((env, ctx) => {

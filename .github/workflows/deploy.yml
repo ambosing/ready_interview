@@ -94,7 +94,7 @@ jobs:
             printf 'BACKEND_PORT=%s\n' "$BACKEND_PORT"
             printf 'FRONTEND_PORT=%s\n' "$FRONTEND_PORT"
             printf 'FRONTEND_URL=%s\n' "$FRONTEND_URL"
-            printf 'DATABASE_URL=file:/app/data/dev.db\n'
+            printf 'DOCKER_DATABASE_URL=file:/app/data/dev.db\n'
             printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
             printf 'JWT_REFRESH_SECRET=%s\n' "$JWT_REFRESH_SECRET"
             printf 'OPENAI_API_KEY=%s\n' "$OPENAI_API_KEY"
@@ -128,5 +128,24 @@ jobs:
           fi
 
           docker compose up --build -d
+          docker compose exec -T backend sh -c '
+            set -eu
+            test "$DATABASE_URL" = "file:/app/data/dev.db"
+            test -d /app/data
+            test -f /app/data/dev.db
+            touch /app/data/.persistence-check
+            if [ -f /app/backend/prisma/dev.db ]; then
+              echo "Unexpected SQLite database outside the persistent /app/data volume."
+              exit 1
+            fi
+          '
+
+          docker compose restart backend
+          docker compose exec -T backend sh -c '
+            set -eu
+            test "$DATABASE_URL" = "file:/app/data/dev.db"
+            test -f /app/data/dev.db
+            test -f /app/data/.persistence-check
+          '
           docker compose ps
           REMOTE_SCRIPT

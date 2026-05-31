@@ -1,10 +1,11 @@
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ProfileService } from '../profile/profile.service.js';
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Body, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { SwotService } from './swot.service.js';
 import { parseJsonArray } from '../utils/route-helpers.js';
+import { parseBody, swotUpdateSchema } from '../utils/validation.js';
 
 @Controller('swot')
 @UseGuards(AuthGuard)
@@ -46,7 +47,7 @@ export class SwotController {
   @Put('')
   async method2(@Body() body: any, @CurrentUser() user: any) {
     const profileId = await this.profileService.getProfileIdByUserId(user.userId);
-    const payload = body; // Needs validation
+    const payload = parseBody(swotUpdateSchema, body);
     const result = await this.prisma.swotAnalysis.upsert({
       where: { profileId },
       update: {

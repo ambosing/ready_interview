@@ -8,9 +8,7 @@ import { config } from '../config/index.js';
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor() {
-    const dbUrl = config.databaseUrl.startsWith('file:')
-      ? config.databaseUrl.replace(/^file:/, '')
-      : 'prisma/dev.db';
+    const dbUrl = config.databaseUrl.replace(/^file:/, '');
     const dbPath = path.isAbsolute(dbUrl) ? dbUrl : path.resolve(process.cwd(), dbUrl);
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
     const adapter = new PrismaBetterSqlite3({ url: `file:${dbPath}` } as any);

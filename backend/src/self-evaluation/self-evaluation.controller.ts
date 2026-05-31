@@ -1,9 +1,14 @@
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ProfileService } from '../profile/profile.service.js';
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { SelfEvaluationService } from './self-evaluation.service.js';
+import {
+  parseBody,
+  selfEvaluationCreateSchema,
+  selfEvaluationUpdateSchema,
+} from '../utils/validation.js';
 
 @Controller('self-evaluations')
 @UseGuards(AuthGuard)
@@ -40,7 +45,7 @@ export class SelfEvaluationController {
 
   @Post('')
   async method3(@Body() body: any, @CurrentUser() user: any) {
-    const payload = body; // Needs validation
+    const payload = parseBody(selfEvaluationCreateSchema, body);
     const application = await this.prisma.application.findFirst({
       where: { id: payload.applicationId, userId: user.userId },
     });
@@ -68,7 +73,7 @@ export class SelfEvaluationController {
 
   @Put(':id')
   async method4(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
-    const payload = body; // Needs validation
+    const payload = parseBody(selfEvaluationUpdateSchema, body);
     const existing = await this.prisma.selfEvaluation.findFirst({
       where: { id, userId: user.userId },
     });

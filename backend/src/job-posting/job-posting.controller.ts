@@ -3,6 +3,12 @@ import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { JobPostingService } from './job-posting.service.js';
 import { parsePaginationQuery } from '../utils/route-helpers.js';
+import {
+  aiModelBodySchema,
+  jobPostingCreateSchema,
+  jobPostingUpdateSchema,
+  parseBody,
+} from '../utils/validation.js';
 
 @Controller('job-postings')
 @UseGuards(AuthGuard)
@@ -24,14 +30,14 @@ export class JobPostingController {
 
   @Post('')
   async method3(@Body() body: any, @CurrentUser() user: any) {
-    const payload = body; // Needs validation
+    const payload = parseBody(jobPostingCreateSchema, body);
     const result = await this.service.createJobPosting(user.userId, payload);
     return { data: result };
   }
 
   @Put(':id')
   async method4(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
-    const payload = body; // Needs validation
+    const payload = parseBody(jobPostingUpdateSchema, body);
     const result = await this.service.updateJobPosting(user.userId, id, payload);
     return { data: result };
   }
@@ -44,7 +50,8 @@ export class JobPostingController {
 
   @Post(':id/analyze')
   async method6(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
-    const result = await this.service.analyzeJobPostingById(user.userId, id, body?.aiModel);
+    const payload = parseBody(aiModelBodySchema, body);
+    const result = await this.service.analyzeJobPostingById(user.userId, id, payload.aiModel);
     return { data: result };
   }
 

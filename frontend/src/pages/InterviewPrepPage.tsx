@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, ChevronRight, MessagesSquare, Plus, Sparkles } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 import { useApplications } from '@/hooks/use-applications'
-import { useCreateInterview, useInterviews } from '@/hooks/use-interviews'
+import { useCreateInterview, useExpectedInterviewQuestions, useInterviews } from '@/hooks/use-interviews'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -68,8 +68,10 @@ export default function InterviewPrepPage() {
   const [type, setType] = useState<InterviewType>('TEXT')
   const [difficulty, setDifficulty] = useState<InterviewDifficulty>('INTERMEDIATE')
   const [selectedAiModel, setSelectedAiModel] = useState<AiModel>(() => getStoredAiModel())
+  const [questionApplicationId, setQuestionApplicationId] = useState('')
   const { data: interviewsResponse, isPending, isError } = useInterviews()
   const { data: applicationsResponse } = useApplications({ limit: 100 })
+  const { data: expectedQuestions, isFetching: isFetchingQuestions } = useExpectedInterviewQuestions(questionApplicationId, selectedAiModel)
   const createInterview = useCreateInterview()
 
   const interviews = useMemo(() => interviewsResponse?.data ?? [], [interviewsResponse])
@@ -84,6 +86,12 @@ export default function InterviewPrepPage() {
     () => applications.filter((application) => application.status === 'INTERVIEW' || application.status === 'OFFER'),
     [applications],
   )
+
+  useEffect(() => {
+    if (!questionApplicationId && applications[0]) {
+      setQuestionApplicationId(applications[0].id)
+    }
+  }, [applications, questionApplicationId])
 
   const handleCreateInterview = async () => {
     if (!applicationId) {
@@ -231,6 +239,54 @@ export default function InterviewPrepPage() {
             <CardDescription>진행 중 세션</CardDescription>
             <CardTitle className="text-3xl">{interviews.filter((interview) => interview.status === 'IN_PROGRESS').length}개</CardTitle>
           </CardHeader>
+        </Card>
+      </section>
+
+      <section>
+        <Card className="border-border/60">
+          <CardHeader className="space-y-2">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <CardTitle>예상 질문과 답변 가이드</CardTitle>
+                <CardDescription>지원 공고를 바탕으로 면접 전에 확인할 질문과 답변 방향을 정리합니다.</CardDescription>
+              </div>
+              <div className="w-full lg:w-96">
+                <Select value={questionApplicationId} onValueChange={setQuestionApplicationId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="예상 질문을 볼 지원 건 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {applications.map((application) => (
+                      <SelectItem key={application.id} value={application.id}>
+                        {getApplicationLabel(application)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {!questionApplicationId ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">예상 질문을 만들 지원 건이 아직 없습니다.</div>
+            ) : null}
+
+            {questionApplicationId && isFetchingQuestions ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">예상 질문을 생성하는 중입니다...</div>
+            ) : null}
+
+            {questionApplicationId && !isFetchingQuestions && expectedQuestions?.length ? (
+              <div className="grid gap-3 lg:grid-cols-2">
+                {expectedQuestions.map((item, index) => (
+                  <div key={`${item.question}-${index}`} className="rounded-2xl border border-border/60 bg-muted/15 p-4">
+                    <Badge variant="secondary" className="mb-3 rounded-full">Q{index + 1}</Badge>
+                    <p className="font-medium leading-6">{item.question}</p>
+                    <p className="mt-3 text-sm leading-6 text-muted-foreground">{item.guide}</p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </CardContent>
         </Card>
       </section>
 

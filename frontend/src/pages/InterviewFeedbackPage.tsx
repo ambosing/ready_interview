@@ -12,7 +12,8 @@ import { Separator } from '@/components/ui/separator'
 type FeedbackCategory = {
   name: string
   score: number
-  comment: string
+  comment?: string
+  feedback?: string
 }
 
 type InterviewFeedback = {
@@ -28,33 +29,48 @@ function isFeedbackCategory(value: unknown): value is FeedbackCategory {
   }
 
   const candidate = value as Record<string, unknown>
-  return typeof candidate.name === 'string' && typeof candidate.score === 'number' && typeof candidate.comment === 'string'
+  return (
+    typeof candidate.name === 'string' &&
+    typeof candidate.score === 'number' &&
+    (typeof candidate.comment === 'string' || typeof candidate.feedback === 'string')
+  )
 }
 
-function parseFeedback(value: string | null): InterviewFeedback | null {
+function normalizeFeedback(parsed: Record<string, unknown>): InterviewFeedback | null {
+  if (
+    typeof parsed.overallScore !== 'number' ||
+    !Array.isArray(parsed.categories) ||
+    !parsed.categories.every(isFeedbackCategory) ||
+    typeof parsed.summary !== 'string' ||
+    !(typeof parsed.improvements === 'string' || Array.isArray(parsed.improvements))
+  ) {
+    return null
+  }
+
+  return {
+    overallScore: parsed.overallScore,
+    categories: parsed.categories.map((category) => ({
+      name: category.name,
+      score: category.score,
+      comment: category.comment || category.feedback || '',
+    })),
+    summary: parsed.summary,
+    improvements: parsed.improvements as string[] | string,
+  }
+}
+
+function parseFeedback(value: InterviewFeedback | string | null): InterviewFeedback | null {
   if (!value) {
     return null
   }
 
+  if (typeof value === 'object') {
+    return normalizeFeedback(value as unknown as Record<string, unknown>)
+  }
+
   try {
     const parsed = JSON.parse(value) as Record<string, unknown>
-
-    if (
-      typeof parsed.overallScore !== 'number' ||
-      !Array.isArray(parsed.categories) ||
-      !parsed.categories.every(isFeedbackCategory) ||
-      typeof parsed.summary !== 'string' ||
-      !(typeof parsed.improvements === 'string' || Array.isArray(parsed.improvements))
-    ) {
-      return null
-    }
-
-    return {
-      overallScore: parsed.overallScore,
-      categories: parsed.categories,
-      summary: parsed.summary,
-      improvements: parsed.improvements as string[] | string,
-    }
+    return normalizeFeedback(parsed)
   } catch {
     return null
   }

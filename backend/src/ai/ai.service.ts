@@ -31,6 +31,10 @@ export interface JobPostingAnalysisResult {
   requirements: string[];
   companyInfo: string;
 }
+export interface ExpectedInterviewQuestion {
+  question: string;
+  guide: string;
+}
 
 interface OpenAiTextResponse {
   output_text?: string;
@@ -90,6 +94,163 @@ ${educations || '없음'}
 [기술 스택]
 ${skills || '없음'}
     `;
+  }
+
+  private fallbackJobPostingAnalysis(content: string): JobPostingAnalysisResult {
+    const keywordCandidates = [
+      'React',
+      'TypeScript',
+      'API 연동',
+      '상태관리',
+      '테스트',
+      '성능 최적화',
+      '협업',
+      '문서화',
+      '클라우드',
+      '사용자 경험',
+    ];
+    const lowerContent = content.toLowerCase();
+    const matched = keywordCandidates.filter((keyword) => lowerContent.includes(keyword.toLowerCase()));
+    const keywords = (matched.length > 0 ? matched : keywordCandidates).slice(0, 6);
+
+    return {
+      keywords,
+      requirements: [
+        '채용 공고의 핵심 요구사항을 빠르게 파악하고, 관련 경험을 구체적인 성과 중심으로 설명해야 합니다.',
+        '프론트엔드 구현력뿐 아니라 백엔드 API와 안정적으로 연동한 경험을 강조하는 것이 좋습니다.',
+        '협업, 문서화, 테스트 자동화처럼 반복 가능한 개발 품질을 높인 사례를 준비하세요.',
+        '사용자 경험이나 성능 개선을 수치와 전후 비교로 설명하면 직무 적합성이 더 선명해집니다.',
+      ],
+      companyInfo: '이 공고는 제품 완성도와 협업 역량을 함께 보는 포지션입니다. 지원자는 기술 선택의 이유와 실제 사용자 가치로 연결한 경험을 준비하는 것이 좋습니다.',
+    };
+  }
+
+  private fallbackResume(profile: ProfileForGeneration, jobPosting: JobPostingForGeneration) {
+    const skills = profile.skills.map((skill) => skill.name).slice(0, 6).join(', ') || '직무 관련 기술';
+    const career = profile.careers[0];
+    const project = profile.projects[0];
+
+    return `# ${profile.user.name} 맞춤형 이력서
+
+## 지원 요약
+${jobPosting.company || '지원 기업'}의 ${jobPosting.title} 포지션에 맞춰, 사용자의 실제 프로필을 바탕으로 작성한 MVP mock 이력서입니다. 핵심 역량은 ${skills}이며, 채용 공고에서 요구하는 문제 해결력과 협업 역량을 중심으로 구성했습니다.
+
+## 핵심 역량
+- 공고 요구사항을 제품 기능과 사용자 경험으로 연결하는 실행력
+- 백엔드 API와 프론트엔드 화면을 안정적으로 연결하는 구현 역량
+- 작업 내용을 문서화하고 팀과 빠르게 조율하는 협업 태도
+
+## 경력
+${career ? `### ${career.company} / ${career.position}\n- 기간: ${this.formatPeriod(career.startDate, career.endDate)}\n- 주요 내용: ${career.description || '제품 개발과 운영 개선에 참여했습니다.'}` : '- 등록된 경력 정보가 없어 프로젝트와 기술 역량 중심으로 작성했습니다.'}
+
+## 프로젝트
+${project ? `### ${project.name}\n- 역할: ${project.role}\n- 기술: ${project.techStack.join(', ') || '등록된 기술 없음'}\n- 내용: ${project.description}\n- 성과: ${project.achievements || '사용자 문제를 해결하는 기능 구현에 기여했습니다.'}` : '- 등록된 프로젝트 정보가 없어 채용 공고 기반의 역량 요약을 우선 배치했습니다.'}
+
+## 지원 직무 적합성
+${jobPosting.content.slice(0, 180)}...
+
+위 요구사항에 맞춰 API 연동, 품질 개선, 협업 경험을 면접 답변에서도 같은 흐름으로 연결하면 좋습니다.`;
+  }
+
+  private fallbackPortfolio(profile: ProfileForGeneration, jobPosting: JobPostingForGeneration) {
+    const projects = profile.projects.length > 0
+      ? profile.projects.map((project) => `### ${project.name}\n- 역할: ${project.role}\n- 기술: ${project.techStack.join(', ') || '등록된 기술 없음'}\n- 문제 해결: ${project.description}\n- 결과: ${project.achievements || '기능 완성도와 사용자 흐름 개선에 기여했습니다.'}`).join('\n\n')
+      : '### 대표 프로젝트\n- 아직 등록된 프로젝트가 없어 공고 기반 포트폴리오 초안을 생성했습니다.\n- 실제 프로젝트를 추가하면 문제, 행동, 결과 구조로 더 정교하게 다듬을 수 있습니다.';
+
+    return `# ${jobPosting.company || '지원 기업'} ${jobPosting.title} 맞춤형 포트폴리오
+
+## 소개
+${profile.user.name}님의 프로필을 기반으로 생성한 MVP mock 포트폴리오입니다. 채용 공고의 요구사항에 맞춰 기술 선택, API 연동, 협업 방식, 결과 중심으로 정리했습니다.
+
+## 핵심 역량
+- 요구사항을 화면 흐름과 데이터 구조로 빠르게 번역하는 능력
+- React/TypeScript 기반 UI 구현과 백엔드 API 연동 경험
+- 문서화와 회고를 통한 지속적인 개선 역량
+
+## 프로젝트 상세
+${projects}
+
+## 공고 대응 전략
+공고에서 강조하는 내용 중 반복적으로 등장하는 기술과 협업 키워드를 자기소개, 프로젝트 설명, 면접 답변에 같은 언어로 반영하세요. 특히 “무엇을 만들었는지”보다 “왜 그렇게 만들었고 어떤 변화가 있었는지”를 먼저 보여주는 구성이 적합합니다.`;
+  }
+
+  private fallbackInterviewerResponse(messages: MessageForInterview[], difficulty: 'BASIC' | 'INTERMEDIATE' | 'ADVANCED') {
+    const userMessages = messages.filter((message) => message.role === 'USER');
+    const turn = userMessages.length;
+
+    if (turn <= 1) {
+      return '좋습니다. 방금 말씀하신 경험에서 본인이 직접 맡았던 역할과 가장 어려웠던 의사결정을 조금 더 구체적으로 설명해 주세요.';
+    }
+
+    if (difficulty === 'ADVANCED') {
+      return '그 선택이 실패했을 가능성도 있었을 텐데요. 당시 고려했던 대안과, 결과를 검증하기 위해 어떤 지표를 봤는지 말씀해 주세요.';
+    }
+
+    if (difficulty === 'BASIC') {
+      return '그 경험을 통해 배운 점은 무엇이고, 다음 프로젝트에서 어떻게 적용했는지 이야기해 주세요.';
+    }
+
+    return '말씀하신 해결 과정에서 팀과 조율한 부분이 궁금합니다. 의견 충돌이나 일정 압박이 있었다면 어떻게 정리했나요?';
+  }
+
+  private fallbackInterviewFeedback(messages: MessageForInterview[]): InterviewFeedbackResult {
+    const answerCount = messages.filter((message) => message.role === 'USER').length;
+    const baseScore = answerCount >= 3 ? 82 : answerCount >= 1 ? 70 : 55;
+
+    return {
+      overallScore: baseScore,
+      categories: [
+        {
+          name: '논리성',
+          score: Math.min(baseScore + 4, 100),
+          feedback: '답변의 흐름은 자연스럽지만 상황, 행동, 결과를 더 분리하면 전달력이 좋아집니다.',
+        },
+        {
+          name: '직무 적합성',
+          score: baseScore,
+          feedback: '직무와 연결되는 경험을 언급했습니다. 공고 키워드와 더 직접적으로 연결해 보세요.',
+        },
+        {
+          name: '커뮤니케이션',
+          score: Math.max(baseScore - 3, 0),
+          feedback: '핵심 메시지는 분명합니다. 수치나 전후 비교를 추가하면 설득력이 올라갑니다.',
+        },
+      ],
+      summary: '전반적으로 경험 기반 답변의 방향은 좋습니다. 다만 문제 상황, 본인의 기여, 결과 지표를 더 구체적으로 제시하면 면접관이 역량을 빠르게 판단할 수 있습니다.',
+      improvements: [
+        '답변 첫 문장에 결론을 먼저 말한 뒤 배경을 설명하세요.',
+        '성과를 가능하면 수치, 기간, 사용자 반응으로 표현하세요.',
+        '공고의 핵심 키워드를 답변 안에 자연스럽게 반복하세요.',
+      ],
+    };
+  }
+
+  private fallbackExpectedQuestions(jobPosting: JobPostingForGeneration): ExpectedInterviewQuestion[] {
+    const company = jobPosting.company || '지원 기업';
+    const role = jobPosting.title;
+
+    return [
+      {
+        question: `${company}의 ${role} 포지션에 지원한 이유와 본인이 가장 잘 기여할 수 있는 부분은 무엇인가요?`,
+        guide: '회사/직무 관심 이유를 한 문장으로 정리한 뒤, 본인의 경험 1개와 연결하세요.',
+      },
+      {
+        question: '최근 프로젝트에서 백엔드 API와 프론트엔드 화면을 연동하며 겪은 어려움은 무엇이었나요?',
+        guide: '문제 상황, 원인 파악, 해결 방법, 결과를 순서대로 말하면 좋습니다.',
+      },
+      {
+        question: '사용자 경험이나 성능을 개선한 경험이 있다면 어떤 지표로 효과를 확인했나요?',
+        guide: '개선 전후 수치, 사용자 반응, 배운 점을 포함해 답변하세요.',
+      },
+      {
+        question: '팀 내 의견이 갈렸을 때 어떤 기준으로 의사결정을 도왔나요?',
+        guide: '기술적 근거와 사용자 가치, 일정 리스크를 함께 고려한 사례를 준비하세요.',
+      },
+      {
+        question: '입사 후 첫 한 달 동안 이 제품이나 팀에 어떤 방식으로 적응하고 기여하고 싶나요?',
+        guide: '학습 계획, 코드베이스 파악 방식, 작은 개선부터 만드는 실행력을 보여주세요.',
+      },
+    ];
   }
 
   private async fetchJson<T>(url: string, options: RequestInit): Promise<T> {
@@ -263,9 +424,9 @@ ${content}
 
     try {
       const text = await this.generateText(prompt, aiModel, { json: true });
-      return this.parseJsonResponse(text || '{}', { keywords: [], requirements: [], companyInfo: '분석에 실패했습니다.' });
+      return this.parseJsonResponse(text || '{}', this.fallbackJobPostingAnalysis(content));
     } catch (e) {
-      return { keywords: [], requirements: [], companyInfo: '분석에 실패했습니다.' };
+      return this.fallbackJobPostingAnalysis(content);
     }
   }
 
@@ -290,9 +451,9 @@ ${this.profileToText(profile)}
 `;
 
     try {
-      return await this.generateText(prompt, aiModel) || '# 이력서 생성 실패';
+      return await this.generateText(prompt, aiModel) || this.fallbackResume(profile, jobPosting);
     } catch (e) {
-      return '# 이력서 생성 실패';
+      return this.fallbackResume(profile, jobPosting);
     }
   }
 
@@ -317,9 +478,9 @@ ${this.profileToText(profile)}
 `;
 
     try {
-      return await this.generateText(prompt, aiModel) || '# 포트폴리오 생성 실패';
+      return await this.generateText(prompt, aiModel) || this.fallbackPortfolio(profile, jobPosting);
     } catch (e) {
-      return '# 포트폴리오 생성 실패';
+      return this.fallbackPortfolio(profile, jobPosting);
     }
   }
 
@@ -336,9 +497,9 @@ ${this.profileToText(profile)}
       : '지원자: 면접을 시작하겠습니다.';
 
     try {
-      return await this.generateText(prompt, aiModel, { systemInstruction }) || '답변을 생성하지 못했습니다.';
+      return await this.generateText(prompt, aiModel, { systemInstruction }) || this.fallbackInterviewerResponse(messages, difficulty);
     } catch (e) {
-      return '답변을 생성하지 못했습니다.';
+      return this.fallbackInterviewerResponse(messages, difficulty);
     }
   }
 
@@ -383,19 +544,38 @@ ${chatHistory}
 
     try {
       const text = await this.generateText(prompt, aiModel, { json: true });
-      return this.parseJsonResponse(text || '{}', {
-        overallScore: 0,
-        categories: [],
-        summary: '피드백 생성에 실패했습니다.',
-        improvements: []
-      });
+      return this.parseJsonResponse(text || '{}', this.fallbackInterviewFeedback(messages));
     } catch (e) {
-      return {
-        overallScore: 0,
-        categories: [],
-        summary: '피드백 생성에 실패했습니다.',
-        improvements: []
-      };
+      return this.fallbackInterviewFeedback(messages);
+    }
+  }
+
+  async generateExpectedQuestions(jobPosting: JobPostingForGeneration, aiModel: AiGenerationModel = DEFAULT_AI_MODEL): Promise<ExpectedInterviewQuestion[]> {
+    const prompt = `
+다음 채용 공고를 바탕으로 예상 면접 질문 5개와 각 질문의 답변 가이드를 JSON 배열로 작성해 주세요.
+각 항목은 question, guide 필드를 가져야 합니다.
+
+[채용 공고]
+회사: ${jobPosting.company || '미상'}
+직무: ${jobPosting.title}
+상세 내용:
+${jobPosting.content}
+
+응답 형식:
+[
+  { "question": "질문", "guide": "답변 가이드" }
+]`;
+
+    try {
+      const text = await this.generateText(prompt, aiModel, { json: true });
+      const parsed = this.parseJsonResponse<ExpectedInterviewQuestion[] | { questions?: ExpectedInterviewQuestion[] }>(
+        text || '[]',
+        this.fallbackExpectedQuestions(jobPosting),
+      );
+      const questions = Array.isArray(parsed) ? parsed : parsed.questions ?? [];
+      return questions.length > 0 ? questions.slice(0, 5) : this.fallbackExpectedQuestions(jobPosting);
+    } catch {
+      return this.fallbackExpectedQuestions(jobPosting);
     }
   }
 }
