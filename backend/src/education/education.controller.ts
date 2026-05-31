@@ -1,9 +1,10 @@
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ProfileService } from '../profile/profile.service.js';
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { EducationService } from './education.service.js';
+import { educationCreateSchema, educationUpdateSchema, parseBody } from '../utils/validation.js';
 
 @Controller('educations')
 @UseGuards(AuthGuard)
@@ -27,7 +28,7 @@ export class EducationController {
   @Post('')
   async method2(@Body() body: any, @CurrentUser() user: any) {
     const profileId = await this.profileService.getProfileIdByUserId(user.userId);
-    const payload = body; // Needs validation
+    const payload = parseBody(educationCreateSchema, body);
     const result = await this.prisma.education.create({
       data: {
         profileId,
@@ -42,7 +43,7 @@ export class EducationController {
 
   @Put(':id')
   async method3(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
-    const payload = body; // Needs validation
+    const payload = parseBody(educationUpdateSchema, body);
     const existing = await this.prisma.education.findFirst({
       where: {
         id,

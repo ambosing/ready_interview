@@ -1,10 +1,11 @@
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ProfileService } from '../profile/profile.service.js';
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { ProjectService } from './project.service.js';
 import { parseJsonArray } from '../utils/route-helpers.js';
+import { parseBody, projectCreateSchema, projectUpdateSchema } from '../utils/validation.js';
 
 @Controller('projects')
 @UseGuards(AuthGuard)
@@ -35,7 +36,7 @@ export class ProjectController {
   @Post('')
   async method2(@Body() body: any, @CurrentUser() user: any) {
     const profileId = await this.profileService.getProfileIdByUserId(user.userId);
-    const payload = body; // Needs validation
+    const payload = parseBody(projectCreateSchema, body);
     const result = await this.prisma.project.create({
       data: {
         profileId,
@@ -55,7 +56,7 @@ export class ProjectController {
 
   @Put(':id')
   async method3(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
-    const payload = body; // Needs validation
+    const payload = parseBody(projectUpdateSchema, body);
     const existing = await this.prisma.project.findFirst({
       where: {
         id,

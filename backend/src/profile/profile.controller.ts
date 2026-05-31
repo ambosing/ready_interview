@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Body, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { ProfileService } from './profile.service.js';
+import { parseBody, updateProfileSchema } from '../utils/validation.js';
 
 @Controller('profile')
 @UseGuards(AuthGuard)
@@ -16,7 +17,7 @@ export class ProfileController {
 
   @Put('')
   async method2(@Body() body: any, @CurrentUser() user: any) {
-    const payload = body; // Needs validation
+    const payload = parseBody(updateProfileSchema, body);
     const result = await this.service.updateProfile(user.userId, payload);
     return { data: result };
   }

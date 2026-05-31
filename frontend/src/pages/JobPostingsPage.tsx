@@ -15,14 +15,7 @@ const statusMap: Record<JobPostingStatus, { label: string; className: string }> 
 }
 
 function getDocumentCountLabel(jobPosting: JobPosting) {
-  const keywordCount = (() => {
-    try {
-      const parsed: unknown = JSON.parse(jobPosting.analyzedKeywords || '[]')
-      return Array.isArray(parsed) ? parsed.length : 0
-    } catch {
-      return 0
-    }
-  })()
+  const keywordCount = jobPosting.analyzedKeywords.length
 
   if (jobPosting.status === 'DRAFT') {
     return '분석 대기 중'

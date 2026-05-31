@@ -35,6 +35,11 @@ type InterviewSessionDetail = InterviewSession & {
   messages: InterviewMessage[]
 }
 
+type ExpectedInterviewQuestion = {
+  question: string
+  guide: string
+}
+
 type SendInterviewMessageResponse = {
   userMessage: InterviewMessage
   aiMessage: InterviewMessage
@@ -44,6 +49,7 @@ const interviewKeys = {
   all: ['interviews'] as const,
   lists: () => [...interviewKeys.all, 'list'] as const,
   list: () => [...interviewKeys.lists()] as const,
+  questions: (applicationId: string, aiModel?: AiModel) => [...interviewKeys.all, 'questions', applicationId, aiModel] as const,
   details: () => [...interviewKeys.all, 'detail'] as const,
   detail: (id: string) => [...interviewKeys.details(), id] as const,
 }
@@ -105,6 +111,25 @@ export function useCreateInterview() {
   })
 }
 
+export function useExpectedInterviewQuestions(applicationId: string, aiModel?: AiModel) {
+  return useQuery({
+    queryKey: interviewKeys.questions(applicationId, aiModel),
+    enabled: Boolean(applicationId),
+    queryFn: async () => {
+      try {
+        const response = await api.post<ApiResponse<ExpectedInterviewQuestion[]>>(
+          `/interviews/applications/${applicationId}/questions`,
+          { aiModel: aiModel ?? getStoredAiModel() },
+        )
+        return response.data.data
+      } catch (error) {
+        toast.error(getErrorMessage(error, '예상 질문을 불러오지 못했습니다.'))
+        throw error
+      }
+    },
+  })
+}
+
 export function useSendInterviewMessage(id: string) {
   const queryClient = useQueryClient()
 
@@ -146,5 +171,5 @@ export function useEndInterview(id: string) {
   })
 }
 
-export type { InterviewSessionDetail, InterviewSessionListItem }
+export type { ExpectedInterviewQuestion, InterviewSessionDetail, InterviewSessionListItem }
 export { interviewKeys }

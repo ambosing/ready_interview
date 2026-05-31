@@ -83,6 +83,20 @@ export class InterviewService {
     return this.formatSession(session);
   }
 
+  async getExpectedQuestions(userId: string, applicationId: string, aiModel?: string) {
+    const application = await this.prisma.application.findFirst({
+      where: { id: applicationId, userId },
+      include: { jobPosting: true },
+    });
+
+    if (!application) throw new NotFoundException('Application not found');
+
+    return this.aiService.generateExpectedQuestions(
+      application.jobPosting as any,
+      resolveAiModel(aiModel),
+    );
+  }
+
   async sendInterviewMessage(userId: string, id: string, content: string, aiModel?: string) {
     const session = await this.prisma.interviewSession.findFirst({
       where: { id, userId },

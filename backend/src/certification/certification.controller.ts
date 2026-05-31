@@ -1,9 +1,10 @@
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ProfileService } from '../profile/profile.service.js';
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { CertificationService } from './certification.service.js';
+import { certificationCreateSchema, certificationUpdateSchema, parseBody } from '../utils/validation.js';
 
 @Controller('certifications')
 @UseGuards(AuthGuard)
@@ -27,7 +28,7 @@ export class CertificationController {
   @Post('')
   async method2(@Body() body: any, @CurrentUser() user: any) {
     const profileId = await this.profileService.getProfileIdByUserId(user.userId);
-    const payload = body; // Needs validation
+    const payload = parseBody(certificationCreateSchema, body);
     const result = await this.prisma.certification.create({
       data: {
         profileId,
@@ -44,7 +45,7 @@ export class CertificationController {
 
   @Put(':id')
   async method3(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
-    const payload = body; // Needs validation
+    const payload = parseBody(certificationUpdateSchema, body);
     const existing = await this.prisma.certification.findFirst({
       where: {
         id,

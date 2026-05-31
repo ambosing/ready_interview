@@ -22,9 +22,13 @@ const statusMap: Record<JobPostingStatus, { label: string; className: string }> 
   APPLIED: { label: '지원 완료', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' },
 }
 
-function parseStringArray(value: string | null) {
+function parseStringArray(value: string[] | string | null | undefined) {
   if (!value) {
     return []
+  }
+
+  if (Array.isArray(value)) {
+    return value
   }
 
   try {

@@ -3,6 +3,7 @@ import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { DocumentService } from './document.service.js';
 import { parsePaginationQuery } from '../utils/route-helpers.js';
+import { documentGenerateSchema, documentUpdateSchema, parseBody } from '../utils/validation.js';
 
 @Controller('documents')
 @UseGuards(AuthGuard)
@@ -24,15 +25,15 @@ export class DocumentController {
 
   @Post('generate')
   async method3(@Body() body: any, @CurrentUser() user: any) {
-    const payload = body; // Needs validation
+    const payload = parseBody(documentGenerateSchema, body);
     const result = await this.service.generateDocument(user.userId, payload.type, payload.jobPostingId, payload.aiModel);
     return { data: result };
   }
 
   @Put(':id')
   async method4(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
-    const { content } = body; // Needs validation
-    const result = await this.service.updateDocument(user.userId, id, content);
+    const payload = parseBody(documentUpdateSchema, body);
+    const result = await this.service.updateDocument(user.userId, id, payload.content);
     return { data: result };
   }
 

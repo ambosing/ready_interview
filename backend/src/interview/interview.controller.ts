@@ -2,6 +2,12 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } fro
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { InterviewService } from './interview.service.js';
+import {
+  aiModelBodySchema,
+  interviewCreateSchema,
+  interviewMessageSchema,
+  parseBody,
+} from '../utils/validation.js';
 
 @Controller('interviews')
 @UseGuards(AuthGuard)
@@ -20,23 +26,31 @@ export class InterviewController {
     return { data: result };
   }
 
+  @Post('applications/:applicationId/questions')
+  async methodQuestions(@Param('applicationId') applicationId: string, @Body() body: any, @CurrentUser() user: any) {
+    const payload = parseBody(aiModelBodySchema, body);
+    const result = await this.service.getExpectedQuestions(user.userId, applicationId, payload.aiModel);
+    return { data: result };
+  }
+
   @Post('')
   async method3(@Body() body: any, @CurrentUser() user: any) {
-    const payload = body; // Needs validation
+    const payload = parseBody(interviewCreateSchema, body);
     const result = await this.service.createInterviewSession(user.userId, payload);
     return { data: result };
   }
 
   @Post(':id/messages')
   async method4(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
-    const { content, aiModel } = body; // Needs validation
-    const result = await this.service.sendInterviewMessage(user.userId, id, content, aiModel);
+    const payload = parseBody(interviewMessageSchema, body);
+    const result = await this.service.sendInterviewMessage(user.userId, id, payload.content, payload.aiModel);
     return { data: result };
   }
 
   @Post(':id/end')
   async method5(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
-    const result = await this.service.endInterviewSession(user.userId, id, body?.aiModel);
+    const payload = parseBody(aiModelBodySchema, body);
+    const result = await this.service.endInterviewSession(user.userId, id, payload.aiModel);
     return { data: result };
   }
 

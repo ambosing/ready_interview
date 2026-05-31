@@ -24,6 +24,9 @@ ENV PORT=3001
 ENV DATABASE_URL=file:/app/data/dev.db
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends ca-certificates openssl \
+  && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
 
 COPY --from=build /app/node_modules ./node_modules

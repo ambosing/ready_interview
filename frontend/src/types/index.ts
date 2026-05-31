@@ -118,8 +118,8 @@ export interface JobPosting {
   url: string | null
   content: string
   status: JobPostingStatus
-  analyzedKeywords: string | null
-  analyzedRequirements: string | null
+  analyzedKeywords: string[]
+  analyzedRequirements: string[]
   createdAt: string
   updatedAt: string
 }
@@ -164,8 +164,22 @@ export interface InterviewSession {
   status: InterviewStatus
   startedAt: string
   endedAt: string | null
-  feedback: string | null
+  feedback: InterviewFeedback | null
   messages?: InterviewMessage[]
+}
+
+export interface InterviewFeedbackCategory {
+  name: string
+  score: number
+  comment?: string
+  feedback?: string
+}
+
+export interface InterviewFeedback {
+  overallScore: number
+  categories: InterviewFeedbackCategory[]
+  summary: string
+  improvements: string[] | string
 }
 
 export interface InterviewMessage {
