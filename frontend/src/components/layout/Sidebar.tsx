@@ -23,10 +23,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const location = useLocation()
 
   return (
-    <div className="flex h-full flex-col border-r border-border/60 bg-muted/20">
-      <div className="border-b border-border/60 px-6 py-5">
+    <div className="flex h-full flex-col border-r border-border/70 bg-card/75 backdrop-blur">
+      <div className="border-b border-border/70 px-6 py-5">
         <Link className="flex items-center gap-3" to="/" onClick={onNavigate}>
-          <div className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Sparkles className="size-5" />
           </div>
           <div>
@@ -47,9 +47,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               to={item.href}
               onClick={onNavigate}
               className={cn(
-                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                 isActive
-                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20'
                   : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
               )}
             >

@@ -35,7 +35,7 @@ export function Header({ onOpenMobileSidebar }: HeaderProps) {
   }
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/60 bg-background/95 px-4 backdrop-blur md:px-8">
+    <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/70 bg-card/85 px-4 backdrop-blur md:px-8">
       <div className="flex items-center gap-3">
         <Button className="md:hidden" size="icon" variant="ghost" onClick={onOpenMobileSidebar}>
           <Menu className="size-5" />
@@ -49,7 +49,7 @@ export function Header({ onOpenMobileSidebar }: HeaderProps) {
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-3 rounded-full border border-border/60 bg-background px-2 py-1.5 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <button className="flex items-center gap-3 rounded-full border border-border/70 bg-card px-2 py-1.5 text-left shadow-xs transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <Avatar>
               <AvatarImage src={user?.profile?.profileImageUrl ?? undefined} alt={user?.name ?? '사용자'} />
               <AvatarFallback>{getInitials(user?.name)}</AvatarFallback>
