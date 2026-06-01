@@ -3,7 +3,7 @@ import { isAxiosError } from 'axios'
 import { toast } from 'sonner'
 
 import { api } from '@/lib/api'
-import { getAiProviderConnectionForModel, getStoredAiModel } from '@/lib/ai-models'
+import { getStoredAiModel } from '@/lib/ai-models'
 import type {
   AiModel,
   ApiListResponse,
@@ -122,7 +122,6 @@ export function useExpectedInterviewQuestions(applicationId: string, aiModel?: A
           `/interviews/applications/${applicationId}/questions`,
           {
             aiModel: selectedAiModel,
-            aiProviderConnection: getAiProviderConnectionForModel(selectedAiModel),
           },
         )
         return response.data.data
@@ -143,7 +142,6 @@ export function useSendInterviewMessage(id: string) {
       const response = await api.post<ApiResponse<SendInterviewMessageResponse>>(`/interviews/${id}/messages`, {
         content,
         aiModel: selectedAiModel,
-        aiProviderConnection: getAiProviderConnectionForModel(selectedAiModel),
       })
       return response.data.data
     },
@@ -164,7 +162,6 @@ export function useEndInterview(id: string) {
       const aiModel = payload?.aiModel ?? getStoredAiModel()
       const response = await api.post<ApiResponse<InterviewSession>>(`/interviews/${id}/end`, {
         aiModel,
-        aiProviderConnection: getAiProviderConnectionForModel(aiModel),
       })
       return response.data.data
     },

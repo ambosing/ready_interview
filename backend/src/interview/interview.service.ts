@@ -1,7 +1,7 @@
 import { InterviewDifficulty, InterviewStatus, InterviewType, MessageRole } from '@prisma/client';
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { AiService, type AiProviderConnection } from '../ai/ai.service.js';
+import { AiService } from '../ai/ai.service.js';
 import { resolveAiModel } from '../ai/ai-models.js';
 
 @Injectable()
@@ -87,7 +87,6 @@ export class InterviewService {
     userId: string,
     applicationId: string,
     aiModel?: string,
-    aiProviderConnection?: AiProviderConnection,
   ) {
     const application = await this.prisma.application.findFirst({
       where: { id: applicationId, userId },
@@ -99,7 +98,7 @@ export class InterviewService {
     return this.aiService.generateExpectedQuestions(
       application.jobPosting as any,
       resolveAiModel(aiModel),
-      aiProviderConnection,
+      userId,
     );
   }
 
@@ -108,7 +107,6 @@ export class InterviewService {
     id: string,
     content: string,
     aiModel?: string,
-    aiProviderConnection?: AiProviderConnection,
   ) {
     const session = await this.prisma.interviewSession.findFirst({
       where: { id, userId },
@@ -134,7 +132,7 @@ export class InterviewService {
         currentMessages as any,
         session.difficulty as any,
         resolveAiModel(aiModel),
-        aiProviderConnection,
+        userId,
       );
 
       await tx.interviewMessage.create({
@@ -153,7 +151,7 @@ export class InterviewService {
     };
   }
 
-  async endInterviewSession(userId: string, id: string, aiModel?: string, aiProviderConnection?: AiProviderConnection) {
+  async endInterviewSession(userId: string, id: string, aiModel?: string) {
     const session = await this.prisma.interviewSession.findFirst({
       where: { id, userId },
       include: {
@@ -167,7 +165,7 @@ export class InterviewService {
     const feedback = await this.aiService.generateInterviewFeedback(
       session.messages as any,
       resolveAiModel(aiModel),
-      aiProviderConnection,
+      userId,
     );
     const updated = await this.prisma.interviewSession.update({
       where: { id },

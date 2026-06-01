@@ -2,27 +2,24 @@ import type { AiModel } from '@/types'
 
 export type AiProvider = 'openai' | 'openai-codex' | 'anthropic' | 'gemini'
 
-export type AiProviderConnection = {
-  provider: AiProvider
-  authType: 'api-key' | 'oauth'
-  apiKey?: string
-  accessToken?: string
-  oauthJson?: string
-  responsesUrl?: string
-  connectedAt: string
-}
+export type AiProviderAuthType = 'api-key' | 'oauth'
 
-export type AiProviderRequestConnection = Omit<AiProviderConnection, 'connectedAt'>
+export type AiProviderConnectionStatus = {
+  provider: AiProvider
+  authType: AiProviderAuthType
+  connected: boolean
+  connectedAt: string | null
+  maskedSecret: string | null
+}
 
 export const defaultAiModel: AiModel = 'gemini:gemini-3.1-pro-preview'
 export const aiModelStorageKey = 'ready-interview-ai-model'
-export const aiProviderConnectionStorageKey = 'ready-interview-ai-provider-connections'
-export const aiProviderConnectionChangeEvent = 'ai-provider-connections-change'
+const legacyAiProviderConnectionStorageKey = 'ready-interview-ai-provider-connections'
 
 export const aiProviderOptions: Array<{
   id: AiProvider
   label: string
-  authType: AiProviderConnection['authType']
+  authType: AiProviderAuthType
   description: string
 }> = [
   {
@@ -191,92 +188,10 @@ export function getAiProviderIdFromModel(value: AiModel): AiProvider {
   return isAiProvider(provider) ? provider : 'gemini'
 }
 
-function normalizeConnection(value: unknown): AiProviderConnection | null {
-  if (!value || typeof value !== 'object') {
-    return null
-  }
-
-  const candidate = value as Partial<AiProviderConnection>
-  if (!candidate.provider || !isAiProvider(candidate.provider)) {
-    return null
-  }
-
-  if (candidate.authType !== 'api-key' && candidate.authType !== 'oauth') {
-    return null
-  }
-
-  return {
-    provider: candidate.provider,
-    authType: candidate.authType,
-    apiKey: candidate.apiKey,
-    accessToken: candidate.accessToken,
-    oauthJson: candidate.oauthJson,
-    responsesUrl: candidate.responsesUrl,
-    connectedAt: candidate.connectedAt ?? new Date().toISOString(),
-  }
-}
-
-export function getStoredAiProviderConnections(): Partial<Record<AiProvider, AiProviderConnection>> {
+export function clearLegacyAiProviderConnections() {
   if (typeof window === 'undefined') {
-    return {}
+    return
   }
 
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(aiProviderConnectionStorageKey) ?? '{}') as Record<string, unknown>
-
-    return Object.fromEntries(
-      Object.entries(parsed)
-        .map(([provider, connection]) => [provider, normalizeConnection(connection)] as const)
-        .filter((entry): entry is [AiProvider, AiProviderConnection] => isAiProvider(entry[0]) && entry[1] !== null),
-    )
-  } catch {
-    return {}
-  }
-}
-
-export function getStoredAiProviderConnection(provider: AiProvider) {
-  return getStoredAiProviderConnections()[provider] ?? null
-}
-
-export function setStoredAiProviderConnection(connection: AiProviderConnection) {
-  const connections = getStoredAiProviderConnections()
-  connections[connection.provider] = connection
-  window.localStorage.setItem(aiProviderConnectionStorageKey, JSON.stringify(connections))
-  window.dispatchEvent(new CustomEvent(aiProviderConnectionChangeEvent, { detail: connections }))
-}
-
-export function removeStoredAiProviderConnection(provider: AiProvider) {
-  const connections = getStoredAiProviderConnections()
-  delete connections[provider]
-  window.localStorage.setItem(aiProviderConnectionStorageKey, JSON.stringify(connections))
-  window.dispatchEvent(new CustomEvent(aiProviderConnectionChangeEvent, { detail: connections }))
-}
-
-export function getAiProviderConnectionForModel(aiModel: AiModel): AiProviderRequestConnection | undefined {
-  const provider = getAiProviderIdFromModel(aiModel)
-  const connection = getStoredAiProviderConnection(provider)
-
-  if (!connection) {
-    return undefined
-  }
-
-  if (connection.authType === 'api-key' && connection.apiKey?.trim()) {
-    return {
-      provider,
-      authType: 'api-key',
-      apiKey: connection.apiKey.trim(),
-    }
-  }
-
-  if (connection.authType === 'oauth' && (connection.accessToken?.trim() || connection.oauthJson?.trim())) {
-    return {
-      provider,
-      authType: 'oauth',
-      accessToken: connection.accessToken?.trim() || undefined,
-      oauthJson: connection.oauthJson?.trim() || undefined,
-      responsesUrl: connection.responsesUrl?.trim() || undefined,
-    }
-  }
-
-  return undefined
+  window.localStorage.removeItem(legacyAiProviderConnectionStorageKey)
 }

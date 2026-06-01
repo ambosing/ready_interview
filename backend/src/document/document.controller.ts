@@ -31,7 +31,6 @@ export class DocumentController {
       payload.type,
       payload.jobPostingId,
       payload.aiModel,
-      payload.aiProviderConnection,
     );
     return { data: result };
   }

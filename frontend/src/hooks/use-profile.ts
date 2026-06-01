@@ -3,7 +3,8 @@ import { isAxiosError } from 'axios'
 import { toast } from 'sonner'
 
 import { api } from '@/lib/api'
-import type { ApiResponse, Career, Certification, Education, Profile, Project, Skill, SwotAnalysis } from '@/types'
+import { getStoredAiModel } from '@/lib/ai-models'
+import type { AiModel, ApiResponse, Career, Certification, Education, Profile, Project, Skill, SwotAnalysis } from '@/types'
 
 export type ProfileDetail = Profile & {
   educations: Education[]
@@ -37,6 +38,26 @@ export type UpdateSkillInput = CreateSkillInput & { id: string }
 
 export type UpdateSwotInput = Pick<SwotAnalysis, 'strengths' | 'weaknesses' | 'opportunities' | 'threats'>
 
+export type ResumeImportSummary = {
+  source: {
+    fileName: string
+    extractedCharacters: number
+  }
+  basicInfoUpdated: string[]
+  educationsCreated: number
+  careersCreated: number
+  certificationsCreated: number
+  projectsCreated: number
+  skillsCreated: number
+  swotUpdated: boolean
+  duplicatesSkipped: number
+}
+
+export type ResumeImportResult = {
+  profile: ProfileDetail
+  imported: ResumeImportSummary
+}
+
 type ResourceName = 'educations' | 'careers' | 'certifications' | 'projects' | 'skills' | 'swot'
 
 const profileKeys = {
@@ -66,6 +87,43 @@ export function useProfile() {
         toast.error(getErrorMessage(error, '프로필 정보를 불러오지 못했습니다.'))
         throw error
       }
+    },
+  })
+}
+
+function formatImportSummary(imported: ResumeImportSummary) {
+  const counts = [
+    imported.educationsCreated > 0 ? `학력 ${imported.educationsCreated}개` : null,
+    imported.careersCreated > 0 ? `경력 ${imported.careersCreated}개` : null,
+    imported.certificationsCreated > 0 ? `자격증 ${imported.certificationsCreated}개` : null,
+    imported.projectsCreated > 0 ? `프로젝트 ${imported.projectsCreated}개` : null,
+    imported.skillsCreated > 0 ? `기술 ${imported.skillsCreated}개` : null,
+    imported.basicInfoUpdated.length > 0 ? `기본 정보 ${imported.basicInfoUpdated.length}개` : null,
+    imported.swotUpdated ? 'SWOT' : null,
+  ].filter(Boolean)
+
+  return counts.length > 0 ? `${counts.join(', ')}를 반영했습니다.` : '새로 반영할 프로필 항목을 찾지 못했습니다.'
+}
+
+export function useImportResume() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ file, aiModel }: { file: File; aiModel?: AiModel }) => {
+      const selectedAiModel = aiModel ?? getStoredAiModel()
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('aiModel', selectedAiModel)
+
+      const response = await api.post<ApiResponse<ResumeImportResult>>('/profile/import-resume', formData)
+      return response.data.data
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: profileKeys.all })
+      toast.success(formatImportSummary(result.imported))
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error, '이력서 프로필 반영에 실패했습니다.'))
     },
   })
 }

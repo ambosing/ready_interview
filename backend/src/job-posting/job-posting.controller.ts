@@ -51,7 +51,7 @@ export class JobPostingController {
   @Post(':id/analyze')
   async method6(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
     const payload = parseBody(aiModelBodySchema, body);
-    const result = await this.service.analyzeJobPostingById(user.userId, id, payload.aiModel, payload.aiProviderConnection);
+    const result = await this.service.analyzeJobPostingById(user.userId, id, payload.aiModel);
     return { data: result };
   }
 

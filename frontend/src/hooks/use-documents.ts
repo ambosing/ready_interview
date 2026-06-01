@@ -3,7 +3,7 @@ import { isAxiosError } from 'axios'
 import { toast } from 'sonner'
 
 import { api } from '@/lib/api'
-import { getAiProviderConnectionForModel, getStoredAiModel } from '@/lib/ai-models'
+import { getStoredAiModel } from '@/lib/ai-models'
 import type { AiModel, ApiListResponse, ApiResponse, DocumentType, DocumentVersion, GeneratedDocument } from '@/types'
 
 type DocumentListParams = {
@@ -88,7 +88,6 @@ export function useGenerateDocument() {
       const response = await api.post<ApiResponse<GeneratedDocument>>('/documents/generate', {
         ...payload,
         aiModel,
-        aiProviderConnection: getAiProviderConnectionForModel(aiModel),
       })
       return response.data.data
     },

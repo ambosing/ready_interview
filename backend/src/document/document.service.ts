@@ -2,7 +2,7 @@ import { DocumentType } from '@prisma/client';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ProfileService } from '../profile/profile.service.js';
-import { AiService, type AiProviderConnection } from '../ai/ai.service.js';
+import { AiService } from '../ai/ai.service.js';
 import { resolveAiModel, type AiGenerationModel } from '../ai/ai-models.js';
 
 @Injectable()
@@ -58,7 +58,6 @@ export class DocumentService {
     type: DocumentType,
     jobPostingId: string,
     aiModel?: string,
-    aiProviderConnection?: AiProviderConnection,
   ) {
     const [profile, jobPosting] = await Promise.all([
       this.profileService.getProfile(userId),
@@ -71,8 +70,8 @@ export class DocumentService {
 
     const selectedAiModel = this.resolveAiModel(aiModel);
     const content = type === DocumentType.RESUME
-      ? await this.aiService.generateResume(profile as any, jobPosting as any, selectedAiModel, aiProviderConnection)
-      : await this.aiService.generatePortfolio(profile as any, jobPosting as any, selectedAiModel, aiProviderConnection);
+      ? await this.aiService.generateResume(profile as any, jobPosting as any, selectedAiModel, userId)
+      : await this.aiService.generatePortfolio(profile as any, jobPosting as any, selectedAiModel, userId);
     const title = `${jobPosting.company ?? '지원 기업'} ${type === DocumentType.RESUME ? '이력서' : '포트폴리오'}`;
 
     const document = await this.prisma.generatedDocument.create({
