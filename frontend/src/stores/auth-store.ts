@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
 import { AUTH_TOKEN_KEY } from '@/lib/api'
+import { clearLegacyAiProviderConnections } from '@/lib/ai-models'
 import type { User } from '@/types'
 
 const REFRESH_TOKEN_KEY = 'hirey-refresh-token'
@@ -37,6 +38,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user, accessToken, refreshToken, isAuthenticated: true })
   },
   logout: () => {
+    clearLegacyAiProviderConnections()
     window.localStorage.removeItem(AUTH_TOKEN_KEY)
     window.localStorage.removeItem(REFRESH_TOKEN_KEY)
     set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false })
@@ -44,6 +46,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 }))
 
 if (typeof window !== 'undefined') {
+  clearLegacyAiProviderConnections()
+
   window.addEventListener(AUTH_LOGOUT_EVENT, () => {
     useAuthStore.getState().logout()
   })

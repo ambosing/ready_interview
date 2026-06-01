@@ -6,6 +6,7 @@ import { CertificationSection } from '@/components/profile/CertificationSection'
 import { EducationSection } from '@/components/profile/EducationSection'
 import { ProfileCompleteness } from '@/components/profile/ProfileCompleteness'
 import { ProjectSection } from '@/components/profile/ProjectSection'
+import { ResumeImportSection } from '@/components/profile/ResumeImportSection'
 import { SkillSection } from '@/components/profile/SkillSection'
 import { SwotSection } from '@/components/profile/SwotSection'
 import { AiProviderSettings } from '@/components/settings/AiProviderSettings'
@@ -55,6 +56,7 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-6">
+      <ResumeImportSection />
       <ProfileCompleteness profile={profile} userName={userName} />
 
       <Tabs defaultValue="basic" className="gap-6">

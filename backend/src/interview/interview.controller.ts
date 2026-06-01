@@ -33,7 +33,6 @@ export class InterviewController {
       user.userId,
       applicationId,
       payload.aiModel,
-      payload.aiProviderConnection,
     );
     return { data: result };
   }
@@ -53,7 +52,6 @@ export class InterviewController {
       id,
       payload.content,
       payload.aiModel,
-      payload.aiProviderConnection,
     );
     return { data: result };
   }
@@ -61,7 +59,7 @@ export class InterviewController {
   @Post(':id/end')
   async method5(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
     const payload = parseBody(aiModelBodySchema, body);
-    const result = await this.service.endInterviewSession(user.userId, id, payload.aiModel, payload.aiProviderConnection);
+    const result = await this.service.endInterviewSession(user.userId, id, payload.aiModel);
     return { data: result };
   }
 

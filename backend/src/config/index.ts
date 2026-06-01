@@ -22,6 +22,10 @@ const envSchema = z.object({
     }),
   JWT_SECRET: z.string().min(32).default('dev-only-jwt-secret-change-before-production'),
   JWT_REFRESH_SECRET: z.string().min(32).default('dev-only-refresh-secret-change-before-production'),
+  AI_PROVIDER_CREDENTIAL_SECRET: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.string().min(32).optional(),
+  ),
 }).superRefine((env, ctx) => {
   if (env.NODE_ENV !== 'production') {
     return
@@ -58,6 +62,7 @@ export const config = {
   databaseUrl: parsedEnv.DATABASE_URL,
   jwtSecret: parsedEnv.JWT_SECRET,
   jwtRefreshSecret: parsedEnv.JWT_REFRESH_SECRET,
+  aiProviderCredentialSecret: parsedEnv.AI_PROVIDER_CREDENTIAL_SECRET ?? parsedEnv.JWT_SECRET,
 } as const
 
 export type AppConfig = typeof config

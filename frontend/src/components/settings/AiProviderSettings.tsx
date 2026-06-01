@@ -1,5 +1,5 @@
-import { Bot, CheckCircle2, KeyRound, Link2, PlugZap, Save, Unplug } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { Bot, CheckCircle2, KeyRound, Link2, LoaderCircle, PlugZap, Save, Unplug } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -28,42 +28,32 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   aiModelOptions,
   aiProviderOptions,
+  clearLegacyAiProviderConnections,
   getAiProviderIdFromModel,
   getStoredAiModel,
-  getStoredAiProviderConnections,
-  removeStoredAiProviderConnection,
   setStoredAiModel,
-  setStoredAiProviderConnection,
   type AiProvider,
-  type AiProviderConnection,
 } from '@/lib/ai-models'
+import {
+  useAiProviderConnections,
+  useDeleteAiProviderConnection,
+  useSaveAiProviderConnection,
+} from '@/hooks/use-ai-provider-connections'
 import type { AiModel } from '@/types'
 
 type ProviderFormState = {
   apiKey: string
   accessToken: string
   oauthJson: string
-  responsesUrl: string
 }
 
 const emptyProviderForm: ProviderFormState = {
   apiKey: '',
   accessToken: '',
   oauthJson: '',
-  responsesUrl: '',
 }
 
-function maskSecret(value?: string) {
-  const normalized = value?.trim()
-
-  if (!normalized) {
-    return '저장된 키 없음'
-  }
-
-  return normalized.length > 8 ? `•••• ${normalized.slice(-4)}` : '••••'
-}
-
-function formatConnectedAt(value?: string) {
+function formatConnectedAt(value?: string | null) {
   if (!value) {
     return '방금 전'
   }
@@ -81,12 +71,23 @@ function formatConnectedAt(value?: string) {
 
 export function AiProviderSettings() {
   const [selectedAiModel, setSelectedAiModel] = useState<AiModel>(() => getStoredAiModel())
-  const [connections, setConnections] = useState(() => getStoredAiProviderConnections())
   const [editingProvider, setEditingProvider] = useState<AiProvider | null>(null)
   const [providerForm, setProviderForm] = useState<ProviderFormState>(emptyProviderForm)
+  const { data: connectionStatuses = [], isLoading } = useAiProviderConnections()
+  const saveConnection = useSaveAiProviderConnection()
+  const deleteConnection = useDeleteAiProviderConnection()
+
+  useEffect(() => {
+    clearLegacyAiProviderConnections()
+  }, [])
 
   const selectedAiModelOption = aiModelOptions.find((option) => option.value === selectedAiModel)
   const selectedProvider = getAiProviderIdFromModel(selectedAiModel)
+
+  const connections = useMemo(
+    () => Object.fromEntries(connectionStatuses.map((status) => [status.provider, status])),
+    [connectionStatuses],
+  )
 
   const modelGroups = useMemo(
     () =>
@@ -103,56 +104,39 @@ export function AiProviderSettings() {
     : null
 
   const openProviderDialog = (provider: AiProvider) => {
-    const connection = connections[provider]
-    setProviderForm({
-      apiKey: connection?.apiKey ?? '',
-      accessToken: connection?.accessToken ?? '',
-      oauthJson: connection?.oauthJson ?? '',
-      responsesUrl: connection?.responsesUrl ?? '',
-    })
+    setProviderForm(emptyProviderForm)
     setEditingProvider(provider)
   }
 
-  const refreshConnections = () => {
-    setConnections(getStoredAiProviderConnections())
-  }
-
-  const handleSaveProvider = () => {
+  const handleSaveProvider = async () => {
     if (!editingProvider || !editingProviderOption) {
       return
     }
 
-    const connection: AiProviderConnection = {
+    const payload = {
       provider: editingProvider,
       authType: editingProviderOption.authType,
       apiKey: providerForm.apiKey.trim() || undefined,
       accessToken: providerForm.accessToken.trim() || undefined,
       oauthJson: providerForm.oauthJson.trim() || undefined,
-      responsesUrl: providerForm.responsesUrl.trim() || undefined,
-      connectedAt: new Date().toISOString(),
     }
 
-    if (connection.authType === 'api-key' && !connection.apiKey) {
+    if (payload.authType === 'api-key' && !payload.apiKey) {
       toast.error('API 키를 입력해 주세요.')
       return
     }
 
-    if (connection.authType === 'oauth' && !connection.accessToken && !connection.oauthJson) {
+    if (payload.authType === 'oauth' && !payload.accessToken && !payload.oauthJson) {
       toast.error('OAuth 토큰 또는 JSON을 입력해 주세요.')
       return
     }
 
-    setStoredAiProviderConnection(connection)
-    refreshConnections()
+    await saveConnection.mutateAsync(payload)
     setEditingProvider(null)
-    toast.success(`${editingProviderOption.label} 연결이 저장되었습니다.`)
   }
 
-  const handleDisconnectProvider = (provider: AiProvider) => {
-    const providerOption = aiProviderOptions.find((item) => item.id === provider)
-    removeStoredAiProviderConnection(provider)
-    refreshConnections()
-    toast.info(`${providerOption?.label ?? '공급자'} 연결을 해제했습니다.`)
+  const handleDisconnectProvider = async (provider: AiProvider) => {
+    await deleteConnection.mutateAsync(provider)
   }
 
   const handleModelChange = (value: string) => {
@@ -161,6 +145,9 @@ export function AiProviderSettings() {
     setStoredAiModel(aiModel)
     toast.success('AI 모델 기본값이 저장되었습니다.')
   }
+
+  const selectedProviderStatus = connections[selectedProvider]
+  const isDialogSaving = saveConnection.isPending
 
   return (
     <Card className="border-border/60">
@@ -206,7 +193,7 @@ export function AiProviderSettings() {
                   {selectedAiModelOption?.provider} · {selectedAiModelOption?.label}
                 </p>
               </div>
-              {connections[selectedProvider] ? (
+              {selectedProviderStatus?.connected ? (
                 <Badge variant="secondary" className="shrink-0 gap-1">
                   <CheckCircle2 className="size-3" />
                   연결됨
@@ -227,9 +214,8 @@ export function AiProviderSettings() {
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {aiProviderOptions.map((provider) => {
             const connection = connections[provider.id]
-            const secretLabel = provider.authType === 'oauth'
-              ? maskSecret(connection?.accessToken ?? connection?.oauthJson)
-              : maskSecret(connection?.apiKey)
+            const isConnected = Boolean(connection?.connected)
+            const secretLabel = connection?.maskedSecret ?? '저장된 키 없음'
 
             return (
               <div key={provider.id} className="flex min-h-48 flex-col justify-between rounded-lg border border-border/60 bg-background p-4">
@@ -239,7 +225,7 @@ export function AiProviderSettings() {
                       <p className="font-medium">{provider.label}</p>
                       <p className="text-sm text-muted-foreground">{provider.description}</p>
                     </div>
-                    {connection ? (
+                    {isConnected ? (
                       <Badge variant="secondary" className="gap-1">
                         <CheckCircle2 className="size-3" />
                         연결됨
@@ -252,9 +238,9 @@ export function AiProviderSettings() {
                   <div className="rounded-md bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <KeyRound className="size-3.5" />
-                      <span>{secretLabel}</span>
+                      <span>{isLoading ? '확인 중...' : secretLabel}</span>
                     </div>
-                    {connection ? <p className="mt-1">저장: {formatConnectedAt(connection.connectedAt)}</p> : null}
+                    {isConnected ? <p className="mt-1">저장: {formatConnectedAt(connection?.connectedAt)}</p> : null}
                   </div>
                 </div>
 
@@ -267,7 +253,7 @@ export function AiProviderSettings() {
                     className="flex-1 gap-2"
                     variant="outline"
                     size="sm"
-                    disabled={!connection}
+                    disabled={!isConnected || deleteConnection.isPending}
                     onClick={() => handleDisconnectProvider(provider.id)}
                   >
                     <Unplug className="size-4" />
@@ -284,7 +270,7 @@ export function AiProviderSettings() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editingProviderOption?.label ?? '공급자'} 연결</DialogTitle>
-            <DialogDescription>저장된 연결값은 선택한 AI 모델 요청에만 함께 전송됩니다.</DialogDescription>
+            <DialogDescription>연결값은 서버에 암호화 저장되며 브라우저 저장소에는 남기지 않습니다.</DialogDescription>
           </DialogHeader>
 
           {editingProviderOption?.authType === 'oauth' ? (
@@ -307,15 +293,6 @@ export function AiProviderSettings() {
                   onChange={(event) => setProviderForm((current) => ({ ...current, oauthJson: event.target.value }))}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="ai-provider-responses-url">Responses URL</Label>
-                <Input
-                  id="ai-provider-responses-url"
-                  value={providerForm.responsesUrl}
-                  placeholder="https://chatgpt.com/backend-api/codex/responses"
-                  onChange={(event) => setProviderForm((current) => ({ ...current, responsesUrl: event.target.value }))}
-                />
-              </div>
             </div>
           ) : (
             <div className="space-y-2">
@@ -330,11 +307,11 @@ export function AiProviderSettings() {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingProvider(null)}>
+            <Button variant="outline" onClick={() => setEditingProvider(null)} disabled={isDialogSaving}>
               취소
             </Button>
-            <Button className="gap-2" onClick={handleSaveProvider}>
-              <Save className="size-4" />
+            <Button className="gap-2" onClick={handleSaveProvider} disabled={isDialogSaving}>
+              {isDialogSaving ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
               저장
             </Button>
           </DialogFooter>
