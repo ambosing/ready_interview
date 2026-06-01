@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 
-import { api, AUTH_TOKEN_KEY, REFRESH_TOKEN_KEY } from '@/lib/api'
+import { api, AUTH_TOKEN_KEY } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
 import type { ApiResponse, User } from '@/types'
 
@@ -37,7 +37,6 @@ export function ProtectedRoute() {
         }
 
         window.localStorage.removeItem(AUTH_TOKEN_KEY)
-        window.localStorage.removeItem(REFRESH_TOKEN_KEY)
         logout()
       })
       .finally(() => {

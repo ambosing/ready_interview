@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
 
 type HeaderProps = {
@@ -29,7 +30,13 @@ export function Header({ onOpenMobileSidebar }: HeaderProps) {
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout')
+    } catch {
+      // Local logout should still complete if the server is unavailable.
+    }
+
     logout()
     navigate('/login', { replace: true })
   }

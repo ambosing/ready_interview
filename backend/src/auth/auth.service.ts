@@ -9,6 +9,15 @@ interface TokenPayload {
   email: string;
 }
 
+const isTokenPayload = (payload: unknown): payload is TokenPayload => {
+  if (!payload || typeof payload !== 'object') {
+    return false;
+  }
+
+  const candidate = payload as Partial<TokenPayload>;
+  return typeof candidate.userId === 'string' && typeof candidate.email === 'string';
+};
+
 @Injectable()
 export class AuthService {
   constructor(private readonly prisma: PrismaService) {}
@@ -89,7 +98,12 @@ export class AuthService {
     try {
       const payload = jwt.verify(token, config.jwtRefreshSecret, {
         algorithms: ['HS256'],
-      }) as TokenPayload;
+      });
+
+      if (!isTokenPayload(payload)) {
+        throw new UnauthorizedException('Invalid refresh token payload');
+      }
+
       const user = await this.prisma.user.findUnique({ where: { id: payload.userId } });
 
       if (!user) {
