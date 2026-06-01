@@ -88,10 +88,6 @@ export const loginSchema = z.object({
   password: z.string().min(1),
 });
 
-export const refreshTokenSchema = z.object({
-  refreshToken: z.string().trim().min(1),
-});
-
 export const updateUserSchema = z.object({
   name: z.string().trim().min(1).max(100),
 });

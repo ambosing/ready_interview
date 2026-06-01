@@ -10,6 +10,7 @@ services:
       DATABASE_URL: ${DOCKER_DATABASE_URL:-file:/app/data/dev.db}
       JWT_SECRET: ${JWT_SECRET:-change-this-jwt-secret-before-production-32}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-this-refresh-secret-before-production-32}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-}
       AI_PROVIDER_CREDENTIAL_SECRET: ${AI_PROVIDER_CREDENTIAL_SECRET:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_CODEX_ACCESS_TOKEN: ${OPENAI_CODEX_ACCESS_TOKEN:-}

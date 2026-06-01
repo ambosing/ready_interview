@@ -1,7 +1,7 @@
 import axios, { type InternalAxiosRequestConfig } from 'axios'
 
 const AUTH_TOKEN_KEY = 'hirey-token'
-const REFRESH_TOKEN_KEY = 'hirey-refresh-token'
+const LEGACY_REFRESH_TOKEN_KEY = 'hirey-refresh-token'
 const AUTH_LOGOUT_EVENT = 'hirey:logout'
 const AUTH_REFRESHED_EVENT = 'hirey:refreshed'
 
@@ -12,12 +12,26 @@ type RetriableRequestConfig = InternalAxiosRequestConfig & {
 type RefreshResponse = {
   data: {
     accessToken: string
-    refreshToken: string
   }
+}
+
+function clearStoredAuth() {
+  window.localStorage.removeItem(AUTH_TOKEN_KEY)
+  window.localStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY)
+}
+
+function canRefreshAfterUnauthorized(request?: RetriableRequestConfig) {
+  if (!request || request._retry) {
+    return false
+  }
+
+  const url = request.url ?? ''
+  return !['/auth/login', '/auth/signup', '/auth/refresh', '/auth/logout'].some((path) => url.includes(path))
 }
 
 export const api = axios.create({
   baseURL: '/api',
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -41,39 +55,36 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config as RetriableRequestConfig | undefined
-    const refreshToken = window.localStorage.getItem(REFRESH_TOKEN_KEY)
 
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && refreshToken) {
-      originalRequest._retry = true
+    if (error.response?.status === 401 && canRefreshAfterUnauthorized(originalRequest)) {
+      const requestToRetry = originalRequest as RetriableRequestConfig
+      requestToRetry._retry = true
 
       try {
-        const response = await axios.post<RefreshResponse>('/api/auth/refresh', {
-          refreshToken,
+        const response = await axios.post<RefreshResponse>('/api/auth/refresh', undefined, {
+          withCredentials: true,
         })
 
-        const { accessToken, refreshToken: nextRefreshToken } = response.data.data
+        const { accessToken } = response.data.data
 
         window.localStorage.setItem(AUTH_TOKEN_KEY, accessToken)
-        window.localStorage.setItem(REFRESH_TOKEN_KEY, nextRefreshToken)
         window.dispatchEvent(
           new CustomEvent(AUTH_REFRESHED_EVENT, {
-            detail: { accessToken, refreshToken: nextRefreshToken },
+            detail: { accessToken },
           }),
         )
 
-        originalRequest.headers.Authorization = `Bearer ${accessToken}`
+        requestToRetry.headers.Authorization = `Bearer ${accessToken}`
 
-        return api(originalRequest)
+        return api(requestToRetry)
       } catch {
-        window.localStorage.removeItem(REFRESH_TOKEN_KEY)
-        window.localStorage.removeItem(AUTH_TOKEN_KEY)
+        clearStoredAuth()
         window.dispatchEvent(new Event(AUTH_LOGOUT_EVENT))
       }
     }
 
     if (error.response?.status === 401) {
-      window.localStorage.removeItem(AUTH_TOKEN_KEY)
-      window.localStorage.removeItem(REFRESH_TOKEN_KEY)
+      clearStoredAuth()
       window.dispatchEvent(new Event(AUTH_LOGOUT_EVENT))
     }
 
@@ -81,4 +92,4 @@ api.interceptors.response.use(
   },
 )
 
-export { AUTH_TOKEN_KEY, REFRESH_TOKEN_KEY }
+export { AUTH_TOKEN_KEY }

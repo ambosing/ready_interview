@@ -14,6 +14,10 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3001),
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
+  AUTH_COOKIE_SECURE: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.enum(['true', 'false']).optional(),
+  ),
   DATABASE_URL: z
     .string()
     .default('file:./prisma/dev.db')
@@ -62,6 +66,9 @@ export const config = {
   databaseUrl: parsedEnv.DATABASE_URL,
   jwtSecret: parsedEnv.JWT_SECRET,
   jwtRefreshSecret: parsedEnv.JWT_REFRESH_SECRET,
+  authCookieSecure: parsedEnv.AUTH_COOKIE_SECURE
+    ? parsedEnv.AUTH_COOKIE_SECURE === 'true'
+    : parsedEnv.FRONTEND_URL.startsWith('https://'),
   aiProviderCredentialSecret: parsedEnv.AI_PROVIDER_CREDENTIAL_SECRET ?? parsedEnv.JWT_SECRET,
 } as const
 
